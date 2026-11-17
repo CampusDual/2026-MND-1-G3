@@ -1,0 +1,37 @@
+<main class="clinic-page">
+  <header class="clinic-header">
+    <div>
+      <span class="eyebrow">VETCONTROL · CLÍNICAS</span>
+      <h1>Gestión de Clínica y Consultas</h1>
+      <p>Organiza la actividad diaria de tu consulta veterinaria.</p>
+    </div>
+    <a class="module-link" routerLink="/portal">← Cambiar de módulo</a>
+  </header>
+
+  <section class="cards" aria-label="Indicadores de la clínica">
+    <article class="kpi"><span>Consultas del día</span><strong>12</strong><small>+2 frente a ayer</small></article>
+    <article class="kpi"><span>Pacientes atendidos</span><strong>8</strong><small>67% de la agenda</small></article>
+    <article class="kpi"><span>Recetas emitidas</span><strong>5</strong><small>Este mes: 42</small></article>
+  </section>
+
+  <section class="panel">
+    <div class="panel-heading">
+      <div><span class="eyebrow">AGENDA</span><h2>Próximas citas en consulta</h2></div>
+      <button type="button">Nueva cita</button>
+    </div>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Hora</th><th>Paciente</th><th>Titular</th><th>Motivo</th><th>Estado</th></tr></thead>
+        <tbody>
+          <tr *ngFor="let appointment of appointments">
+            <td><strong>{{ appointment.time }}</strong></td>
+            <td>{{ appointment.patient }}</td>
+            <td>{{ appointment.owner }}</td>
+            <td>{{ appointment.type }}</td>
+            <td><span class="status" [class.pending]="appointment.status === 'Pendiente'">{{ appointment.status }}</span></td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+</main>

@@ -1,0 +1,99 @@
+<main class="dashboard">
+  <header class="hero">
+    <div>
+      <span class="eyebrow">VETCONTROL · B2B</span>
+      <h1>Centro de control ganadero</h1>
+      <p>Protocolos sanitarios, animales y comunicaciones WhatsApp en un solo lugar.</p>
+    </div>
+    <div class="hero-actions">
+      <a class="outline-button" routerLink="/portal">← Cambiar de módulo</a>
+      <button class="outline-button" type="button" (click)="runDailyReview()">Forzar revisión diaria</button>
+    </div>
+  </header>
+
+  <p class="error" *ngIf="error" role="alert">{{ error }}</p>
+  <p class="loading" *ngIf="loading">Sincronizando datos...</p>
+
+  <section class="cards" aria-label="Indicadores clave">
+    <article class="kpi"><span>Total explotaciones</span><strong>{{ farms.length }}</strong><small>Fincas conectadas</small></article>
+    <article class="kpi warning"><span>Retirada activa</span><strong>{{ withdrawalCount }}</strong><small>Animales bloqueados</small></article>
+    <article class="kpi"><span>Próximos protocolos</span><strong>{{ reminderCount }}</strong><small>Programados desde hoy</small></article>
+    <article class="kpi"><span>WhatsApp</span><strong>{{ pendingNotifications }} <em>/ {{ confirmedNotifications }}</em></strong><small>Pendientes / confirmados</small></article>
+  </section>
+
+  <section class="workspace">
+    <article class="panel animals-panel">
+      <div class="panel-heading">
+        <div><span class="eyebrow">CENSO</span><h2>Animales y crotales</h2></div>
+        <select [(ngModel)]="selectedFarmId" aria-label="Filtrar por explotación">
+          <option [ngValue]="null">Todas las explotaciones</option>
+          <option *ngFor="let farm of farms" [ngValue]="farm.id">{{ farm.name }}</option>
+        </select>
+      </div>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Animal</th><th>Explotación</th><th>Especie</th><th>Estado sanitario</th><th>Acción rápida</th></tr></thead>
+          <tbody>
+            <tr *ngFor="let animal of filteredAnimals">
+              <td><strong>{{ animal.name || 'Sin nombre' }}</strong><small>{{ animal.earTag }}</small></td>
+              <td>{{ farmName(animal.farmId) }}</td>
+              <td>{{ animal.species }}</td>
+              <td><span class="badge" [class]="(animal.estadoSanitario || 'SANO').toLowerCase()">{{ statusLabel(animal.estadoSanitario) }}</span></td>
+              <td class="quick-action">
+                <select [(ngModel)]="selectedStatus" aria-label="Nuevo estado sanitario">
+                  <option value="SANO">SANO</option>
+                  <option value="EN_TRATAMIENTO">EN_TRATAMIENTO</option>
+                  <option value="EN_RETIRADA_MEDICAMENTO">EN_RETIRADA_MEDICAMENTO</option>
+                  <option value="ENFERMO">ENFERMO</option>
+                  <option value="CUARENTENA">CUARENTENA</option>
+                </select>
+                <button type="button" (click)="updateStatus(animal)">Actualizar</button>
+              </td>
+            </tr>
+            <tr *ngIf="filteredAnimals.length === 0"><td colspan="5" class="empty">No hay animales para este filtro.</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </article>
+
+    <article class="panel protocol-panel">
+      <div class="panel-heading"><div><span class="eyebrow">MOTOR CÍCLICO</span><h2>Registrar protocolo</h2></div></div>
+      <form (ngSubmit)="createProtocol()">
+        <label>Explotación
+          <select [(ngModel)]="protocol.farmId" name="farmId" required>
+            <option [ngValue]="0">Selecciona...</option>
+            <option *ngFor="let farm of farms" [ngValue]="farm.id">{{ farm.name }}</option>
+          </select>
+        </label>
+        <label>Animal
+          <select [(ngModel)]="protocol.animalId" name="animalId">
+            <option [ngValue]="undefined">Explotación completa</option>
+            <option *ngFor="let animal of animals" [ngValue]="animal.id">{{ animal.earTag }} · {{ animal.name }}</option>
+          </select>
+        </label>
+        <label>Título<input [(ngModel)]="protocol.title" name="title" placeholder="Ej. Vacunación anual" required></label>
+        <div class="form-grid">
+          <label>Tipo
+            <select [(ngModel)]="protocol.eventType" name="eventType">
+              <option value="VACUNACION">VACUNACION</option>
+              <option value="TRATAMIENTO_MEDICO">TRATAMIENTO_MEDICO</option>
+              <option value="PARTO">PARTO</option>
+              <option value="REVISION_PERIODICA">REVISION_PERIODICA</option>
+            </select>
+          </label>
+          <label>Fecha<input type="date" [(ngModel)]="protocol.applicationDate" name="applicationDate" required></label>
+        </div>
+        <div class="form-grid">
+          <label>Medicamento<input [(ngModel)]="protocol.medication" name="medication" placeholder="Opcional"></label>
+          <label>Lote<input [(ngModel)]="protocol.medicationBatch" name="medicationBatch" placeholder="Opcional"></label>
+        </div>
+        <div class="form-grid">
+          <label>Días de retirada<input type="number" min="0" [(ngModel)]="protocol.withdrawalDays" name="withdrawalDays"></label>
+          <label>Próximo ciclo<input type="number" min="0" [(ngModel)]="protocol.nextCycleDays" name="nextCycleDays"></label>
+        </div>
+        <button class="primary-button" type="submit">Guardar y programar avisos</button>
+      </form>
+    </article>
+  </section>
+
+</main>
