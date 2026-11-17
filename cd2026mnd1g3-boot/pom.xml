@@ -94,6 +94,7 @@
                                     <directory>${project.parent.basedir}/${project.parent.artifactId}-openapi/src/main/resources</directory>
                                     <includes>
                                         <include>openapi-copilot.yaml</include>
+                                        <include>openapi.json</include>
                                     </includes>
                                 </resource>
                             </resources>

@@ -1,6 +1,7 @@
 package com.campusdual.cd2026mnd1g3.ws.controller;
 
 import com.campusdual.cd2026mnd1g3.model.exception.UserNotFoundException;
+import com.campusdual.cd2026mnd1g3.model.exception.ResourceNotFoundException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.AccessDeniedException;
@@ -26,7 +27,7 @@ public class RestExceptionHandler {
      * @param exception excepcion de negocio
      * @return respuesta HTTP 404
      */
-    @ExceptionHandler(UserNotFoundException.class)
+    @ExceptionHandler({UserNotFoundException.class, ResourceNotFoundException.class})
     public ResponseEntity<Map<String, Object>> handleUserNotFound(UserNotFoundException exception) {
         return buildErrorResponse(HttpStatus.NOT_FOUND, exception.getMessage());
     }

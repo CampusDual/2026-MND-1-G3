@@ -1,138 +1,123 @@
 openapi: 3.1.0
 info:
-  title: OpenAPI definition
-  version: v0
+  title: Plataforma veterinaria ganadera
+  version: 1.0.0
 servers:
-- url: http://localhost:8080
-  description: Generated server url
+  - url: http://localhost:8080
+security:
+  - basicAuth: []
 paths:
-  /api/users/{id}:
+  /api/explotaciones:
     get:
-      tags:
-      - user-controller
-      operationId: getById
-      parameters:
-      - name: id
-        in: path
-        required: true
-        schema:
-          type: integer
-          format: int64
+      operationId: listFarms
       responses:
-        "200":
-          description: OK
-          content:
-            '*/*':
-              schema:
-                $ref: "#/components/schemas/UserDto"
-    put:
-      tags:
-      - user-controller
-      operationId: update
-      parameters:
-      - name: id
-        in: path
-        required: true
-        schema:
-          type: integer
-          format: int64
-      requestBody:
-        content:
-          application/json:
-            schema:
-              $ref: "#/components/schemas/UserUpsertRequestDto"
-        required: true
-      responses:
-        "200":
-          description: OK
-          content:
-            '*/*':
-              schema:
-                $ref: "#/components/schemas/UserDto"
-    delete:
-      tags:
-      - user-controller
-      operationId: delete
-      parameters:
-      - name: id
-        in: path
-        required: true
-        schema:
-          type: integer
-          format: int64
-      responses:
-        "200":
-          description: OK
-  /api/users:
-    get:
-      tags:
-      - user-controller
-      operationId: getAll
-      responses:
-        "200":
-          description: OK
-          content:
-            '*/*':
-              schema:
-                type: array
-                items:
-                  $ref: "#/components/schemas/UserDto"
+        '200': {description: Explotaciones, content: {application/json: {schema: {type: array, items: {$ref: '#/components/schemas/Farm'}}}}}
     post:
-      tags:
-      - user-controller
-      operationId: create
-      requestBody:
-        content:
-          application/json:
-            schema:
-              $ref: "#/components/schemas/UserUpsertRequestDto"
-        required: true
+      operationId: createFarm
+      requestBody: {$ref: '#/components/requestBodies/Farm'}
       responses:
-        "200":
-          description: OK
-          content:
-            '*/*':
-              schema:
-                $ref: "#/components/schemas/UserDto"
+        '201': {description: Creada, content: {application/json: {schema: {$ref: '#/components/schemas/Farm'}}}}
+        '400': {$ref: '#/components/responses/BadRequest'}
+  /api/animales:
+    get:
+      operationId: listAnimals
+      responses:
+        '200': {description: Animales, content: {application/json: {schema: {type: array, items: {$ref: '#/components/schemas/Animal'}}}}}
+    post:
+      operationId: createAnimal
+      requestBody: {$ref: '#/components/requestBodies/Animal'}
+      responses:
+        '201': {description: Creado, content: {application/json: {schema: {$ref: '#/components/schemas/Animal'}}}}
+        '400': {$ref: '#/components/responses/BadRequest'}
+  /api/protocolos:
+    get:
+      operationId: listProtocolEvents
+      responses:
+        '200': {description: Protocolos, content: {application/json: {schema: {type: array, items: {$ref: '#/components/schemas/ProtocolEvent'}}}}}
+    post:
+      operationId: createProtocolEvent
+      requestBody: {$ref: '#/components/requestBodies/ProtocolEvent'}
+      responses:
+        '201': {description: Creado con notificaciones, content: {application/json: {schema: {$ref: '#/components/schemas/ProtocolEvent'}}}}
+        '400': {$ref: '#/components/responses/BadRequest'}
+  /api/notificaciones:
+    get:
+      operationId: listNotifications
+      responses:
+        '200': {description: Cola WhatsApp, content: {application/json: {schema: {type: array, items: {$ref: '#/components/schemas/WhatsAppNotification'}}}}}
+  /api/notificaciones/{id}/simular-envio:
+    post:
+      operationId: simulateSend
+      parameters: [{name: id, in: path, required: true, schema: {type: integer, format: int64, minimum: 1}}]
+      responses:
+        '200': {description: Enviado, content: {application/json: {schema: {$ref: '#/components/schemas/WhatsAppNotification'}}}}
+        '400': {$ref: '#/components/responses/BadRequest'}
+        '404': {$ref: '#/components/responses/NotFound'}
+  /api/notificaciones/{id}/simular-respuesta-ganadero:
+    post:
+      operationId: simulateFarmerConfirmation
+      parameters: [{name: id, in: path, required: true, schema: {type: integer, format: int64, minimum: 1}}]
+      responses:
+        '200': {description: Confirmado, content: {application/json: {schema: {$ref: '#/components/schemas/WhatsAppNotification'}}}}
+        '400': {$ref: '#/components/responses/BadRequest'}
+        '404': {$ref: '#/components/responses/NotFound'}
 components:
+  securitySchemes:
+    basicAuth: {type: http, scheme: basic}
+  requestBodies:
+    Farm: {required: true, content: {application/json: {schema: {$ref: '#/components/schemas/Farm'}}}}
+    Animal: {required: true, content: {application/json: {schema: {$ref: '#/components/schemas/Animal'}}}}
+    ProtocolEvent: {required: true, content: {application/json: {schema: {$ref: '#/components/schemas/ProtocolEvent'}}}}
+  responses:
+    BadRequest: {description: Datos inválidos}
+    NotFound: {description: Recurso no encontrado}
   schemas:
-    UserUpsertRequestDto:
+    Farm:
+      type: object
+      required: [name, regaCode, mainSpecies, managerName, whatsappPhone]
+      properties:
+        id: {type: integer, format: int64}
+        name: {type: string, minLength: 1, maxLength: 120}
+        regaCode: {type: string, minLength: 1, maxLength: 30}
+        mainSpecies: {$ref: '#/components/schemas/Species'}
+        managerName: {type: string, minLength: 1, maxLength: 120}
+        whatsappPhone: {type: string, minLength: 7, maxLength: 30}
+    Animal:
+      type: object
+      required: [earTag, species, birthDate, healthStatus, farmId]
+      properties:
+        id: {type: integer, format: int64}
+        earTag: {type: string, minLength: 1, maxLength: 40}
+        name: {type: string, maxLength: 100}
+        species: {$ref: '#/components/schemas/Species'}
+        birthDate: {type: string, format: date}
+        healthStatus: {type: string, enum: [HEALTHY, SICK, QUARANTINE, DECEASED]}
+        farmId: {type: integer, format: int64, minimum: 1}
+    ProtocolEvent:
+      type: object
+      required: [eventType, title, applicationDate, withdrawalDays, farmId]
+      properties:
+        id: {type: integer, format: int64}
+        eventType: {type: string, enum: [VACUNACION, REVISION, TRATAMIENTO, PARTO]}
+        title: {type: string, minLength: 1, maxLength: 150}
+        medication: {type: string, maxLength: 120}
+        applicationDate: {type: string, format: date}
+        withdrawalDays: {type: integer, minimum: 0}
+        withdrawalEndDate: {type: string, format: date, readOnly: true}
+        nextReminderDays: {type: integer, minimum: 1, nullable: true}
+        status: {type: string, enum: [PROGRAMADO, APLICADO, PENDIENTE_REVISION]}
+        animalId: {type: integer, format: int64, minimum: 1}
+        farmId: {type: integer, format: int64, minimum: 1}
+    WhatsAppNotification:
       type: object
       properties:
-        username:
-          type: string
-          maxLength: 80
-          minLength: 0
-        password:
-          type: string
-          maxLength: 120
-          minLength: 8
-        enabled:
-          type: boolean
-        roles:
-          type: array
-          items:
-            type: string
-            minLength: 1
-          minItems: 1
-          uniqueItems: true
-      required:
-      - enabled
-      - password
-      - roles
-      - username
-    UserDto:
-      type: object
-      properties:
-        id:
-          type: integer
-          format: int64
-        username:
-          type: string
-        enabled:
-          type: boolean
-        roles:
-          type: array
-          items:
-            type: string
-          uniqueItems: true
+        id: {type: integer, format: int64}
+        destinationPhone: {type: string}
+        message: {type: string}
+        scheduledAt: {type: string, format: date-time}
+        sentAt: {type: string, format: date-time, nullable: true}
+        sendStatus: {type: string, enum: [PENDIENTE, ENVIADO, CONFIRMADO_GANADERO]}
+        protocolEventId: {type: integer, format: int64}
+    Species:
+      type: string
+      enum: [VACUNO_LECHE, VACUNO_CARNE, PORCINO, OVINO]

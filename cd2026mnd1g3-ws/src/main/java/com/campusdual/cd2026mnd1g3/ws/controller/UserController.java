@@ -58,7 +58,7 @@ public class UserController {
      * @return usuario creado
      */
     @PostMapping
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasRole('CLINIC_ADMIN')")
     public ResponseEntity<UserDto> create(@Valid @RequestBody UserUpsertRequestDto userRequest) {
         UserDto createdUser = this.userService.create(userRequest);
         return ResponseEntity.status(HttpStatus.CREATED).body(createdUser);
@@ -72,7 +72,7 @@ public class UserController {
      * @return usuario actualizado
      */
     @PutMapping("/{id}")
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasRole('CLINIC_ADMIN')")
     public ResponseEntity<UserDto> update(@PathVariable Long id, @Valid @RequestBody UserUpsertRequestDto userRequest) {
         return ResponseEntity.ok(this.userService.update(id, userRequest));
     }
@@ -84,10 +84,9 @@ public class UserController {
      * @return respuesta vacia con codigo 204
      */
     @DeleteMapping("/{id}")
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasRole('CLINIC_ADMIN')")
     public ResponseEntity<Void> delete(@PathVariable Long id) {
         this.userService.delete(id);
         return ResponseEntity.noContent().build();
     }
 }
-

@@ -1,7 +1,10 @@
 package com.campusdual.cd2026mnd1g3.model.entity;
 
+import com.campusdual.cd2026mnd1g3.api.enums.Role;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
 import jakarta.persistence.FetchType;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
@@ -30,6 +33,19 @@ public class UserEntity {
 
     @Column(nullable = false)
     private Boolean enabled;
+
+    @Column(length = 120)
+    private String name;
+
+    @Column(length = 30)
+    private String phone;
+
+    @Column(length = 160)
+    private String email;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "app_role", length = 30)
+    private Role role;
 
     @ManyToMany(fetch = FetchType.EAGER)
     @JoinTable(
@@ -71,6 +87,38 @@ public class UserEntity {
         this.enabled = enabled;
     }
 
+    public String getName() {
+        return name;
+    }
+
+    public void setName(String name) {
+        this.name = name;
+    }
+
+    public String getPhone() {
+        return phone;
+    }
+
+    public void setPhone(String phone) {
+        this.phone = phone;
+    }
+
+    public String getEmail() {
+        return email;
+    }
+
+    public void setEmail(String email) {
+        this.email = email;
+    }
+
+    public Role getRole() {
+        return role;
+    }
+
+    public void setRole(Role role) {
+        this.role = role;
+    }
+
     public Set<RoleEntity> getRoles() {
         return roles;
     }
@@ -79,4 +127,3 @@ public class UserEntity {
         this.roles = roles == null ? new HashSet<>() : roles;
     }
 }
-

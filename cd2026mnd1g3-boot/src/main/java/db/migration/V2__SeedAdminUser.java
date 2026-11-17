@@ -18,9 +18,9 @@ public class V2__SeedAdminUser extends BaseJavaMigration {
     public void migrate(Context context) throws Exception {
         Connection connection = context.getConnection();
 
-        Long roleId = findRoleId(connection, "ROLE_ADMIN");
+        Long roleId = findRoleId(connection, "ROLE_CLINIC_ADMIN");
         if (roleId == null) {
-            roleId = insertRole(connection, "ROLE_ADMIN");
+            roleId = insertRole(connection, "ROLE_CLINIC_ADMIN");
         }
 
         Long userId = findUserId(connection, "admin");
@@ -105,4 +105,3 @@ public class V2__SeedAdminUser extends BaseJavaMigration {
         }
     }
 }
-

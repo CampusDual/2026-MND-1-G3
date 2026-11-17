@@ -2,6 +2,7 @@ package com.campusdual.cd2026mnd1g3.model.service;
 
 import com.campusdual.cd2026mnd1g3.api.dto.UserDto;
 import com.campusdual.cd2026mnd1g3.api.dto.UserUpsertRequestDto;
+import com.campusdual.cd2026mnd1g3.api.enums.UserRole;
 import com.campusdual.cd2026mnd1g3.api.service.UserService;
 import com.campusdual.cd2026mnd1g3.model.entity.RoleEntity;
 import com.campusdual.cd2026mnd1g3.model.entity.UserEntity;
@@ -156,7 +157,11 @@ public class UserServiceImpl implements UserService {
         if (!normalizedRole.startsWith("ROLE_")) {
             normalizedRole = "ROLE_" + normalizedRole;
         }
+        try {
+            UserRole.valueOf(normalizedRole.substring("ROLE_".length()));
+        } catch (IllegalArgumentException exception) {
+            throw new IllegalArgumentException("El rol indicado no esta permitido: " + roleName, exception);
+        }
         return normalizedRole;
     }
 }
-
