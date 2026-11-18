@@ -8,19 +8,19 @@ public class FarmDto {
     private String regaCode;
     private Species mainSpecies;
     private String managerName;
-    private String whatsappPhone;
+    private Long clinicaId;
     private String veterinarianAssignedPhone;
 
     public FarmDto() {
     }
 
-    public FarmDto(Long id, String name, String regaCode, Species mainSpecies, String managerName, String whatsappPhone) {
+    public FarmDto(Long id, String name, String regaCode, Species mainSpecies, String managerName, Long clinicaId) {
         this.id = id;
         this.name = name;
         this.regaCode = regaCode;
         this.mainSpecies = mainSpecies;
         this.managerName = managerName;
-        this.whatsappPhone = whatsappPhone;
+        this.clinicaId = clinicaId;
     }
 
     public Long getId() { return id; }
@@ -33,8 +33,8 @@ public class FarmDto {
     public void setMainSpecies(Species mainSpecies) { this.mainSpecies = mainSpecies; }
     public String getManagerName() { return managerName; }
     public void setManagerName(String managerName) { this.managerName = managerName; }
-    public String getWhatsappPhone() { return whatsappPhone; }
-    public void setWhatsappPhone(String whatsappPhone) { this.whatsappPhone = whatsappPhone; }
+    public Long getClinicaId() { return clinicaId; }
+    public void setClinicaId(Long clinicaId) { this.clinicaId = clinicaId; }
     public String getVeterinarianAssignedPhone() { return veterinarianAssignedPhone; }
     public void setVeterinarianAssignedPhone(String veterinarianAssignedPhone) {
         this.veterinarianAssignedPhone = veterinarianAssignedPhone;

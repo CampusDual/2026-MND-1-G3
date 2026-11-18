@@ -1,19 +1,8 @@
 package com.campusdual.cd2026mnd1g3;
 
-import com.campusdual.cd2026mnd1g3.api.enums.EstadoSanitario;
-import com.campusdual.cd2026mnd1g3.api.enums.EventStatus;
-import com.campusdual.cd2026mnd1g3.api.enums.EventType;
-import com.campusdual.cd2026mnd1g3.api.enums.HealthStatus;
-import com.campusdual.cd2026mnd1g3.api.enums.NotificationStatus;
-import com.campusdual.cd2026mnd1g3.api.enums.Species;
-import com.campusdual.cd2026mnd1g3.model.entity.AnimalEntity;
-import com.campusdual.cd2026mnd1g3.model.entity.FarmEntity;
-import com.campusdual.cd2026mnd1g3.model.entity.ProtocolEventEntity;
-import com.campusdual.cd2026mnd1g3.model.entity.WhatsAppNotificationEntity;
-import com.campusdual.cd2026mnd1g3.model.repository.AnimalRepository;
-import com.campusdual.cd2026mnd1g3.model.repository.FarmRepository;
-import com.campusdual.cd2026mnd1g3.model.repository.ProtocolEventRepository;
-import com.campusdual.cd2026mnd1g3.model.repository.WhatsAppNotificationRepository;
+import com.campusdual.cd2026mnd1g3.api.enums.*;
+import com.campusdual.cd2026mnd1g3.model.entity.*;
+import com.campusdual.cd2026mnd1g3.model.repository.*;
 import org.springframework.boot.CommandLineRunner;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
@@ -22,37 +11,45 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 
 /**
- * Carga datos de demostración únicamente sobre una base de datos ganadera vacía.
+ * Carga datos iniciales y de demostración para la clínica veterinaria.
  */
 @Component
 public class DataInitializer implements CommandLineRunner {
-
     private final FarmRepository farmRepository;
     private final AnimalRepository animalRepository;
     private final ProtocolEventRepository eventRepository;
-    private final WhatsAppNotificationRepository notificationRepository;
+    private final MedicamentoRepository medicamentoRepository;
+    private final LoteStockRepository loteRepository;
+    private final MovimientoInventarioRepository movimientoRepository;
+    private final AlertaSistemaRepository alertaRepository;
 
-    public DataInitializer(FarmRepository farmRepository, AnimalRepository animalRepository,
+    public DataInitializer(FarmRepository farmRepository,
+                           AnimalRepository animalRepository,
                            ProtocolEventRepository eventRepository,
-                           WhatsAppNotificationRepository notificationRepository) {
+                           MedicamentoRepository medicamentoRepository,
+                           LoteStockRepository loteRepository,
+                           MovimientoInventarioRepository movimientoRepository,
+                           AlertaSistemaRepository alertaRepository) {
         this.farmRepository = farmRepository;
         this.animalRepository = animalRepository;
         this.eventRepository = eventRepository;
-        this.notificationRepository = notificationRepository;
+        this.medicamentoRepository = medicamentoRepository;
+        this.loteRepository = loteRepository;
+        this.movimientoRepository = movimientoRepository;
+        this.alertaRepository = alertaRepository;
     }
 
     @Override
     @Transactional
     public void run(String... args) {
-        if (farmRepository.count() > 0 || animalRepository.count() > 0
-                || eventRepository.count() > 0 || notificationRepository.count() > 0) {
+        if (farmRepository.count() > 0) {
             return;
         }
 
         FarmEntity dairyFarm = createFarm("Ganadería El Roble", "ES2800000001",
-                Species.VACUNO_LECHE, "Laura García", "+34610000001", "+34610000011");
+                Species.VACUNO_LECHE, "Laura García");
         FarmEntity pigFarm = createFarm("Granja Los Pinos", "ES2800000002",
-                Species.PORCINO, "Miguel López", "+34610000002", "+34610000022");
+                Species.PORCINO, "Miguel López");
 
         AnimalEntity healthy = createAnimal("ES2800000001-001", "Bruma", Species.VACUNO_LECHE,
                 HealthStatus.HEALTHY, EstadoSanitario.SANO, dairyFarm, null);
@@ -64,31 +61,46 @@ public class DataInitializer implements CommandLineRunner {
         createAnimal("ES2800000002-002", "Roble", Species.PORCINO,
                 HealthStatus.QUARANTINE, EstadoSanitario.CUARENTENA, pigFarm, null);
 
-        ProtocolEventEntity vaccine = createEvent(EventType.VACUNACION, "Revacunación anual",
-                null, LocalDate.now(), 0, 30, EventStatus.APLICADO, healthy, dairyFarm);
-        ProtocolEventEntity treatment = createEvent(EventType.TRATAMIENTO_MEDICO, "Tratamiento antibiótico",
-                "Amoxicilina", LocalDate.now().minusDays(1), 5, 0, EventStatus.APLICADO,
-                withdrawal, dairyFarm);
-        ProtocolEventEntity checkup = createEvent(EventType.REVISION_PERIODICA, "Revisión veterinaria",
-                null, LocalDate.now().plusDays(1), 0, 0, EventStatus.PROGRAMADO, sick, pigFarm);
+        createEvent(EventType.VACUNACION, "Revacunación anual",
+                LocalDate.now(), 0, 30, EventStatus.APLICADO, healthy, dairyFarm);
+        createEvent(EventType.TRATAMIENTO_MEDICO, "Tratamiento antibiótico",
+                LocalDate.now().minusDays(1), 5, 0,
+                EventStatus.APLICADO, withdrawal, dairyFarm);
+        createEvent(EventType.REVISION_PERIODICA, "Revisión veterinaria",
+                LocalDate.now().plusDays(1), 0, 0,
+                EventStatus.PROGRAMADO, sick, pigFarm);
 
-        createNotification(dairyFarm.getWhatsappPhone(), "Próxima revacunación de Bruma", vaccine,
-                NotificationStatus.PENDIENTE);
-        createNotification(dairyFarm.getWhatsappPhone(), "Retirada activa de Niebla", treatment,
-                NotificationStatus.ENVIADO);
-        createNotification(pigFarm.getWhatsappPhone(), "Revisión veterinaria de Pino", checkup,
-                NotificationStatus.CONFIRMADO_GANADERO);
+        LoteStockEntity loteAmoxi = createMedicamentoYLote(
+                "Amoxicilina 15%", "Amoxicilina", "VACUNO/PORCINO",
+                CategoriaPran.B, 5, 20, "LOT-AMX-001");
+        LoteStockEntity loteVacuna = createMedicamentoYLote(
+                "Vacuna BTV", "Virus vivo atenuado", "VACUNO",
+                CategoriaPran.C, 0, 10, "LOT-BTV-001");
+        LoteStockEntity loteAntip = createMedicamentoYLote(
+                "Ivermectina 1%", "Ivermectina", "VACUNO/PORCINO",
+                CategoriaPran.B, 14, 15, "LOT-IVM-001");
+
+        createEntrada(loteAmoxi, 50);
+        createEntrada(loteVacuna, 30);
+        createEntrada(loteAntip, 40);
+
+        createAlerta(DestinatarioRol.VETERINARIAN, TipoAlerta.URGENCIA_ANIMAL_ENFERMO,
+                "Animal enfermo", "Pino ha sido informado como enfermo.", pigFarm.getId(), sick.getId());
+        createAlerta(DestinatarioRol.FARM_MANAGER, TipoAlerta.FIN_RETIRADA_MEDICAMENTO,
+                "Fin de retirada próximo", "Niebla finaliza su periodo de retirada el "
+                        + LocalDate.now().plusDays(5) + ".", dairyFarm.getId(), withdrawal.getId());
+        createAlerta(DestinatarioRol.CLINIC_ADMIN, TipoAlerta.RECORDATORIO_CICLICO,
+                "Recordatorio cíclico", "Revacunación anual de Bruma programada.", dairyFarm.getId(),
+                healthy.getId());
     }
 
-    private FarmEntity createFarm(String name, String regaCode, Species species, String manager,
-                                  String whatsapp, String veterinarianPhone) {
+    private FarmEntity createFarm(String name, String regaCode, Species species, String manager) {
         FarmEntity farm = new FarmEntity();
         farm.setName(name);
         farm.setRegaCode(regaCode);
         farm.setMainSpecies(species);
         farm.setManagerName(manager);
-        farm.setWhatsappPhone(whatsapp);
-        farm.setVeterinarianAssignedPhone(veterinarianPhone);
+        farm.setClinicaId(1L);
         return farmRepository.save(farm);
     }
 
@@ -107,14 +119,13 @@ public class DataInitializer implements CommandLineRunner {
         return animalRepository.save(animal);
     }
 
-    private ProtocolEventEntity createEvent(EventType type, String title, String medication,
+    private ProtocolEventEntity createEvent(EventType type, String title,
                                             LocalDate applicationDate, int withdrawalDays,
                                             int nextCycleDays, EventStatus status,
                                             AnimalEntity animal, FarmEntity farm) {
         ProtocolEventEntity event = new ProtocolEventEntity();
         event.setEventType(type);
         event.setTitle(title);
-        event.setMedication(medication);
         event.setApplicationDate(applicationDate);
         event.setWithdrawalDays(withdrawalDays);
         event.setWithdrawalEndDate(withdrawalDays > 0
@@ -126,15 +137,48 @@ public class DataInitializer implements CommandLineRunner {
         return eventRepository.save(event);
     }
 
-    private void createNotification(String phone, String message, ProtocolEventEntity event,
-                                    NotificationStatus status) {
-        WhatsAppNotificationEntity notification = new WhatsAppNotificationEntity();
-        notification.setDestinationPhone(phone);
-        notification.setMessage(message);
-        notification.setScheduledAt(LocalDateTime.now());
-        notification.setSentAt(status == NotificationStatus.PENDIENTE ? null : LocalDateTime.now());
-        notification.setSendStatus(status);
-        notification.setProtocolEvent(event);
-        notificationRepository.save(notification);
+    private LoteStockEntity createMedicamentoYLote(String nombre, String principio,
+                                                   String especie, CategoriaPran categoria,
+                                                   int retiro, double stockMinimo, String lote) {
+        MedicamentoEntity medicamento = new MedicamentoEntity();
+        medicamento.setClinicaId(1L);
+        medicamento.setNombreComercial(nombre);
+        medicamento.setPrincipioActivo(principio);
+        medicamento.setEspecieDestino(especie);
+        medicamento.setCategoriaPran(categoria);
+        medicamento.setDiasRetiradaDefecto(retiro);
+        medicamento.setStockMinimoAlerta(stockMinimo);
+        MedicamentoEntity saved = medicamentoRepository.save(medicamento);
+
+        LoteStockEntity loteStock = new LoteStockEntity();
+        loteStock.setMedicamento(saved);
+        loteStock.setNumeroLote(lote);
+        loteStock.setFechaCaducidad(LocalDate.now().plusMonths(12));
+        loteStock.setProveedor("Proveedor veterinario inicial");
+        return loteRepository.save(loteStock);
+    }
+
+    private void createEntrada(LoteStockEntity lote, double cantidad) {
+        MovimientoInventarioEntity movimiento = new MovimientoInventarioEntity();
+        movimiento.setClinicaId(1L);
+        movimiento.setLoteStock(lote);
+        movimiento.setTipoMovimiento(TipoMovimiento.ENTRADA_COMPRA);
+        movimiento.setCantidad(cantidad);
+        movimiento.setFechaHora(LocalDateTime.now());
+        movimientoRepository.save(movimiento);
+    }
+
+    private void createAlerta(DestinatarioRol rol, TipoAlerta tipo,
+                              String titulo, String mensaje, Long explotacionId, Long animalId) {
+        AlertaSistemaEntity alerta = new AlertaSistemaEntity();
+        alerta.setClinicaId(1L);
+        alerta.setDestinatarioRol(rol);
+        alerta.setTipoAlerta(tipo);
+        alerta.setTitulo(titulo);
+        alerta.setMensaje(mensaje);
+        alerta.setFechaProgramada(LocalDateTime.now());
+        alerta.setExplotacionId(explotacionId);
+        alerta.setAnimalId(animalId);
+        alertaRepository.save(alerta);
     }
 }

@@ -11,6 +11,10 @@ import com.campusdual.cd2026mnd1g3.model.repository.AnimalRepository;
 import com.campusdual.cd2026mnd1g3.model.repository.FarmRepository;
 import com.campusdual.cd2026mnd1g3.model.repository.ProtocolEventRepository;
 import org.springframework.scheduling.annotation.Scheduled;
+import org.springframework.context.ApplicationEventPublisher;
+import com.campusdual.cd2026mnd1g3.model.event.EstadoSanitarioCambiadoEvent;
+import com.campusdual.cd2026mnd1g3.model.event.ProtocoloRegistradoEvent;
+import com.campusdual.cd2026mnd1g3.api.enums.TipoMovimiento;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -27,16 +31,19 @@ public class ProtocoloCiclicoService {
     private final ProtocolEventRepository eventRepository;
     private final FarmRepository farmRepository;
     private final AnimalRepository animalRepository;
-    private final WhatsAppSimulatorService whatsappSimulatorService;
+    private final ApplicationEventPublisher eventPublisher;
+    private final InventarioService inventarioService;
 
     public ProtocoloCiclicoService(ProtocolEventRepository eventRepository,
                                    FarmRepository farmRepository,
                                    AnimalRepository animalRepository,
-                                   WhatsAppSimulatorService whatsappSimulatorService) {
+                                   ApplicationEventPublisher eventPublisher,
+                                   InventarioService inventarioService) {
         this.eventRepository = eventRepository;
         this.farmRepository = farmRepository;
         this.animalRepository = animalRepository;
-        this.whatsappSimulatorService = whatsappSimulatorService;
+        this.eventPublisher = eventPublisher;
+        this.inventarioService = inventarioService;
     }
 
     public ProtocolEventDto registrarProtocolo(ProtocolEventDto dto) {
@@ -49,8 +56,6 @@ public class ProtocoloCiclicoService {
         ProtocolEventEntity event = new ProtocolEventEntity();
         event.setEventType(dto.getEventType());
         event.setTitle(dto.getTitle().trim());
-        event.setMedication(dto.getMedication());
-        event.setMedicationBatch(dto.getMedicationBatch());
         event.setApplicationDate(dto.getApplicationDate());
         event.setWithdrawalDays(dto.getWithdrawalDays());
         event.setWithdrawalEndDate(dto.getWithdrawalDays() > 0
@@ -61,19 +66,26 @@ public class ProtocoloCiclicoService {
         event.setAnimal(animal);
         event.setFarm(farm);
         ProtocolEventEntity saved = eventRepository.save(event);
+        Long clinicaId = farm.getClinicaId();
+        if (dto.getLoteStockId() != null && dto.getCantidadUsada() != null
+                && dto.getCantidadUsada() > 0) {
+            inventarioService.registrarSalida(clinicaId, dto.getLoteStockId(), dto.getCantidadUsada(),
+                    TipoMovimiento.SALIDA_GANADERIA, null, animal == null ? null : animal.getId(),
+                    farm.getId(), saved.getId());
+        }
+        eventPublisher.publishEvent(new ProtocoloRegistradoEvent(saved.getId(), clinicaId,
+                farm.getId(), animal == null ? null : animal.getId(), saved.getTitle(),
+                saved.getWithdrawalDays() > 0,
+                saved.getApplicationDate().atStartOfDay()));
 
         if (saved.getWithdrawalDays() > 0 && animal != null) {
             animal.setFechaFinRetirada(saved.getWithdrawalEndDate());
             animal.setEstadoSanitario(EstadoSanitario.EN_RETIRADA_MEDICAMENTO);
             animalRepository.save(animal);
-            schedule(farm.getWhatsappPhone(), "Bloqueo sanitario de leche/carne hasta "
-                    + saved.getWithdrawalEndDate(), saved);
         }
         if (saved.getNextCycleDays() > 0) {
             ProtocolEventEntity next = createNextCycle(saved);
-            ProtocolEventEntity nextSaved = eventRepository.save(next);
-            schedule(farm.getWhatsappPhone(), "Próximo protocolo programado: "
-                    + nextSaved.getTitle() + " el " + nextSaved.getApplicationDate(), nextSaved);
+            eventRepository.save(next);
         }
         return toDto(saved);
     }
@@ -87,13 +99,9 @@ public class ProtocoloCiclicoService {
         animal.setEstadoSanitario(nuevoEstado);
         animal.setNotas(notas);
         animalRepository.save(animal);
-        if ((nuevoEstado == EstadoSanitario.ENFERMO || nuevoEstado == EstadoSanitario.CUARENTENA)
-                && animal.getFarm().getVeterinarianAssignedPhone() != null) {
-            whatsappSimulatorService.sendImmediateAlert(
-                    animal.getFarm().getVeterinarianAssignedPhone(),
-                    "Alerta sanitaria para el animal " + animal.getEarTag() + ": " + nuevoEstado,
-                    findEventIdForAlert(animal));
-        }
+        eventPublisher.publishEvent(new EstadoSanitarioCambiadoEvent(
+                animal.getFarm().getClinicaId(), animal.getFarm().getId(), animal.getId(),
+                nuevoEstado, notas));
     }
 
     @Scheduled(cron = "0 0 8 * * ?")
@@ -104,20 +112,18 @@ public class ProtocoloCiclicoService {
     public void ejecutarRevisionDiaria() {
         LocalDate today = LocalDate.now();
         eventRepository.findByApplicationDateAndStatus(today, EventStatus.PROGRAMADO)
-                .forEach(event -> whatsappSimulatorService.scheduleOrSendMessage(
-                        event.getFarm().getWhatsappPhone(),
-                        "Protocolo programado para hoy: " + event.getTitle(),
-                        LocalDateTime.now(),
-                        event.getId()));
+                .forEach(event -> eventPublisher.publishEvent(new ProtocoloRegistradoEvent(
+                        event.getId(), event.getFarm().getClinicaId(), event.getFarm().getId(),
+                        event.getAnimal() == null ? null : event.getAnimal().getId(),
+                        event.getTitle(), event.getWithdrawalDays() > 0, LocalDateTime.now())));
         animalRepository.findByFechaFinRetiradaLessThanEqualAndEstadoSanitario(
                         today, EstadoSanitario.EN_RETIRADA_MEDICAMENTO).forEach(animal -> {
             animal.setEstadoSanitario(EstadoSanitario.SANO);
             animal.setFechaFinRetirada(null);
             animalRepository.save(animal);
-            whatsappSimulatorService.sendImmediateAlert(
-                    animal.getFarm().getWhatsappPhone(),
-                    "Finaliza la retirada sanitaria del animal " + animal.getEarTag(),
-                    findEventIdForAlert(animal));
+            eventPublisher.publishEvent(new EstadoSanitarioCambiadoEvent(
+                    animal.getFarm().getClinicaId(), animal.getFarm().getId(), animal.getId(),
+                    EstadoSanitario.SANO, "Finaliza la retirada sanitaria"));
         });
     }
 
@@ -125,8 +131,6 @@ public class ProtocoloCiclicoService {
         ProtocolEventEntity next = new ProtocolEventEntity();
         next.setEventType(source.getEventType());
         next.setTitle(source.getTitle() + " (siguiente ciclo)");
-        next.setMedication(source.getMedication());
-        next.setMedicationBatch(source.getMedicationBatch());
         next.setApplicationDate(source.getApplicationDate().plusDays(source.getNextCycleDays()));
         next.setWithdrawalDays(source.getWithdrawalDays());
         next.setNextCycleDays(source.getNextCycleDays());
@@ -134,10 +138,6 @@ public class ProtocoloCiclicoService {
         next.setAnimal(source.getAnimal());
         next.setFarm(source.getFarm());
         return next;
-    }
-
-    private void schedule(String phone, String message, ProtocolEventEntity event) {
-        whatsappSimulatorService.scheduleOrSendMessage(phone, message, LocalDateTime.now(), event.getId());
     }
 
     private Long findEventIdForAlert(AnimalEntity animal) {
@@ -159,10 +159,9 @@ public class ProtocoloCiclicoService {
 
     private ProtocolEventDto toDto(ProtocolEventEntity event) {
         ProtocolEventDto dto = new ProtocolEventDto(event.getId(), event.getEventType(), event.getTitle(),
-                event.getMedication(), event.getApplicationDate(), event.getWithdrawalDays(),
+                event.getApplicationDate(), event.getWithdrawalDays(),
                 event.getWithdrawalEndDate(), event.getNextReminderDays(), event.getStatus(),
                 event.getAnimal() == null ? null : event.getAnimal().getId(), event.getFarm().getId());
-        dto.setMedicationBatch(event.getMedicationBatch());
         dto.setNextCycleDays(event.getNextCycleDays());
         return dto;
     }

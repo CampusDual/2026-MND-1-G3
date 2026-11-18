@@ -3,11 +3,15 @@
     <div>
       <span class="eyebrow">VETCONTROL · B2B</span>
       <h1>Centro de control ganadero</h1>
-      <p>Protocolos sanitarios, animales y comunicaciones WhatsApp en un solo lugar.</p>
+      <p>Protocolos sanitarios, animales y alertas internas en tiempo real.</p>
     </div>
     <div class="hero-actions">
       <a class="outline-button" routerLink="/portal">← Cambiar de módulo</a>
       <button class="outline-button" type="button" (click)="runDailyReview()">Forzar revisión diaria</button>
+      <button class="bell-button" type="button" aria-label="Bandeja de alertas">
+        <span aria-hidden="true">🔔</span>
+        <strong *ngIf="unreadAlerts > 0">{{ unreadAlerts }}</strong>
+      </button>
     </div>
   </header>
 
@@ -18,7 +22,7 @@
     <article class="kpi"><span>Total explotaciones</span><strong>{{ farms.length }}</strong><small>Fincas conectadas</small></article>
     <article class="kpi warning"><span>Retirada activa</span><strong>{{ withdrawalCount }}</strong><small>Animales bloqueados</small></article>
     <article class="kpi"><span>Próximos protocolos</span><strong>{{ reminderCount }}</strong><small>Programados desde hoy</small></article>
-    <article class="kpi"><span>WhatsApp</span><strong>{{ pendingNotifications }} <em>/ {{ confirmedNotifications }}</em></strong><small>Pendientes / confirmados</small></article>
+    <article class="kpi"><span>Alertas en vivo</span><strong>{{ unreadAlerts }}</strong><small>Sin leer</small></article>
   </section>
 
   <section class="workspace">
@@ -83,9 +87,26 @@
           </label>
           <label>Fecha<input type="date" [(ngModel)]="protocol.applicationDate" name="applicationDate" required></label>
         </div>
+        <label>Medicamento
+          <select [(ngModel)]="protocolMedicationId" name="medicamentoId" (ngModelChange)="onMedicationChange()">
+            <option [ngValue]="null">Sin uso de medicamento</option>
+            <option *ngFor="let medicamento of medicamentos" [ngValue]="medicamento.id">
+              {{ medicamento.nombreComercial }} · {{ medicamento.principioActivo }}
+            </option>
+          </select>
+        </label>
         <div class="form-grid">
-          <label>Medicamento<input [(ngModel)]="protocol.medication" name="medication" placeholder="Opcional"></label>
-          <label>Lote<input [(ngModel)]="protocol.medicationBatch" name="medicationBatch" placeholder="Opcional"></label>
+          <label>Lote con stock disponible
+            <select [(ngModel)]="protocol.loteStockId" name="loteStockId" [disabled]="protocolMedicationId === null">
+              <option [ngValue]="undefined">Selecciona un lote</option>
+              <option *ngFor="let lote of lotesWithStock()" [ngValue]="lote.id">
+                {{ lote.numeroLote }} · Stock {{ stockOfLote(lote.id) }}
+              </option>
+            </select>
+          </label>
+          <label>Cantidad administrada
+            <input type="number" min="0.01" step="0.01" [(ngModel)]="protocol.cantidadUsada" name="cantidadUsada" [disabled]="protocol.loteStockId === undefined">
+          </label>
         </div>
         <div class="form-grid">
           <label>Días de retirada<input type="number" min="0" [(ngModel)]="protocol.withdrawalDays" name="withdrawalDays"></label>
@@ -94,6 +115,33 @@
         <button class="primary-button" type="submit">Guardar y programar avisos</button>
       </form>
     </article>
+  </section>
+
+  <section class="panel communications-panel">
+    <div class="panel-heading">
+      <div><span class="eyebrow">COMUNICACIONES</span><h2>Granja ↔ Veterinario</h2></div>
+      <span class="online"><i></i>Conectado en tiempo real</span>
+    </div>
+    <div class="alerts-window">
+      <article class="alert-message" *ngFor="let alert of alerts">
+        <div class="avatar">VC</div>
+        <div class="alert-bubble" [class.critical]="alert.tipoAlerta === 'URGENCIA_ANIMAL_ENFERMO'">
+          <small>{{ alertLabel(alert) }} · {{ alert.fechaProgramada | date:'dd/MM/yyyy HH:mm' }}</small>
+          <strong>{{ alert.titulo }}</strong>
+          <p>{{ alert.mensaje }}</p>
+          <div class="message-status" *ngIf="alert.confirmadaPorGranja">Confirmada por granja</div>
+          <div class="message-actions" *ngIf="alert.tipoAlerta === 'URGENCIA_ANIMAL_ENFERMO' || alert.tipoAlerta === 'FIN_RETIRADA_MEDICAMENTO'">
+            <button type="button" [disabled]="alert.leida" (click)="markAlertRead(alert)">
+              {{ alert.leida ? 'Leída' : 'Marcar como leída' }}
+            </button>
+            <button type="button" [disabled]="alert.confirmadaPorGranja" (click)="confirmAlert(alert)">
+              {{ alert.confirmadaPorGranja ? 'Confirmada' : 'Confirmar ejecución en granja' }}
+            </button>
+          </div>
+        </div>
+      </article>
+      <p class="empty" *ngIf="alerts.length === 0">No hay alertas activas.</p>
+    </div>
   </section>
 
 </main>

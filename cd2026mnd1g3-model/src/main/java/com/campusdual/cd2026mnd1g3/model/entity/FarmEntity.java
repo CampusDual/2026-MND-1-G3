@@ -18,10 +18,10 @@ public class FarmEntity {
     private Species mainSpecies;
     @Column(name = "manager_name", nullable = false, length = 120)
     private String managerName;
-    @Column(name = "whatsapp_phone", nullable = false, length = 30)
-    private String whatsappPhone;
     @Column(name = "veterinarian_assigned_phone", length = 30)
     private String veterinarianAssignedPhone;
+    @Column(name = "clinica_id", nullable = false)
+    private Long clinicaId = 1L;
 
     public Long getId() { return id; }
     public void setId(Long id) { this.id = id; }
@@ -33,10 +33,10 @@ public class FarmEntity {
     public void setMainSpecies(Species mainSpecies) { this.mainSpecies = mainSpecies; }
     public String getManagerName() { return managerName; }
     public void setManagerName(String managerName) { this.managerName = managerName; }
-    public String getWhatsappPhone() { return whatsappPhone; }
-    public void setWhatsappPhone(String whatsappPhone) { this.whatsappPhone = whatsappPhone; }
     public String getVeterinarianAssignedPhone() { return veterinarianAssignedPhone; }
     public void setVeterinarianAssignedPhone(String veterinarianAssignedPhone) {
         this.veterinarianAssignedPhone = veterinarianAssignedPhone;
     }
+    public Long getClinicaId() { return clinicaId; }
+    public void setClinicaId(Long clinicaId) { this.clinicaId = clinicaId; }
 }

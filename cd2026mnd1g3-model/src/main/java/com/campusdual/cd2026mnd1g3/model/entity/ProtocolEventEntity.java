@@ -16,10 +16,6 @@ public class ProtocolEventEntity {
     private EventType eventType;
     @Column(nullable = false, length = 150)
     private String title;
-    @Column(length = 120)
-    private String medication;
-    @Column(name = "medication_batch", length = 120)
-    private String medicationBatch;
     @Column(name = "application_date", nullable = false)
     private LocalDate applicationDate;
     @Column(name = "withdrawal_days", nullable = false)
@@ -46,10 +42,6 @@ public class ProtocolEventEntity {
     public void setEventType(EventType eventType) { this.eventType = eventType; }
     public String getTitle() { return title; }
     public void setTitle(String title) { this.title = title; }
-    public String getMedication() { return medication; }
-    public void setMedication(String medication) { this.medication = medication; }
-    public String getMedicationBatch() { return medicationBatch; }
-    public void setMedicationBatch(String medicationBatch) { this.medicationBatch = medicationBatch; }
     public LocalDate getApplicationDate() { return applicationDate; }
     public void setApplicationDate(LocalDate applicationDate) { this.applicationDate = applicationDate; }
     public Integer getWithdrawalDays() { return withdrawalDays; }

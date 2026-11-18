@@ -1,154 +1,42 @@
 openapi: 3.1.0
 info:
-  title: Plataforma veterinaria ganadera
-  version: 1.0.0
+  title: VetControl B2B
+  version: 2.0.0
 servers:
   - url: http://localhost:8080
 security:
   - basicAuth: []
 paths:
-  /api/explotaciones:
+  /api/alertas:
     get:
-      operationId: listFarms
       responses:
-        '200': {description: Explotaciones, content: {application/json: {schema: {type: array, items: {$ref: '#/components/schemas/Farm'}}}}}
-    post:
-      operationId: createFarm
-      requestBody: {$ref: '#/components/requestBodies/Farm'}
-      responses:
-        '201': {description: Creada, content: {application/json: {schema: {$ref: '#/components/schemas/Farm'}}}}
-        '400': {$ref: '#/components/responses/BadRequest'}
-  /api/animales:
+        '200': {description: Lista de alertas internas}
+  /api/inventario/medicamentos:
     get:
-      operationId: listAnimals
       responses:
-        '200': {description: Animales, content: {application/json: {schema: {type: array, items: {$ref: '#/components/schemas/Animal'}}}}}
-    post:
-      operationId: createAnimal
-      requestBody: {$ref: '#/components/requestBodies/Animal'}
-      responses:
-        '201': {description: Creado, content: {application/json: {schema: {$ref: '#/components/schemas/Animal'}}}}
-        '400': {$ref: '#/components/responses/BadRequest'}
-  /api/protocolos:
+        '200': {description: Medicamentos por clínica}
+  /api/inventario/lotes:
     get:
-      operationId: listProtocolEvents
       responses:
-        '200': {description: Protocolos, content: {application/json: {schema: {type: array, items: {$ref: '#/components/schemas/ProtocolEvent'}}}}}
-    post:
-      operationId: createProtocolEvent
-      requestBody: {$ref: '#/components/requestBodies/ProtocolEvent'}
-      responses:
-        '201': {description: Creado con notificaciones, content: {application/json: {schema: {$ref: '#/components/schemas/ProtocolEvent'}}}}
-        '400': {$ref: '#/components/responses/BadRequest'}
-  /api/notificaciones:
+        '200': {description: Lotes disponibles por clínica}
+  /api/inventario/movimientos:
     get:
-      operationId: listNotifications
       responses:
-        '200': {description: Cola WhatsApp, content: {application/json: {schema: {type: array, items: {$ref: '#/components/schemas/WhatsAppNotification'}}}}}
-  /api/protocolos-ciclicos:
-    post:
-      operationId: registerCyclicProtocol
-      requestBody: {$ref: '#/components/requestBodies/ProtocolEvent'}
-      responses:
-        '201': {description: Protocolo registrado, content: {application/json: {schema: {$ref: '#/components/schemas/ProtocolEvent'}}}}
-        '400': {$ref: '#/components/responses/BadRequest'}
-  /api/protocolos-ciclicos/animales/{animalId}/estado:
-    post:
-      operationId: updateAnimalHealthStatus
-      parameters:
-        - {name: animalId, in: path, required: true, schema: {type: integer, format: int64, minimum: 1}}
-        - {name: estado, in: query, required: true, schema: {type: string, enum: [SANO, EN_TRATAMIENTO, EN_RETIRADA_MEDICAMENTO, ENFERMO, CUARENTENA]}}
-        - {name: notas, in: query, required: false, schema: {type: string, maxLength: 1000}}
-      responses:
-        '204': {description: Estado actualizado}
-        '400': {$ref: '#/components/responses/BadRequest'}
-        '404': {$ref: '#/components/responses/NotFound'}
-  /api/protocolos-ciclicos/ejecutar-revision-diaria:
-    post:
-      operationId: runDailyProtocolReview
-      responses:
-        '204': {description: Revisión ejecutada}
-  /api/notificaciones/{id}/simular-envio:
-    post:
-      operationId: simulateSend
-      parameters: [{name: id, in: path, required: true, schema: {type: integer, format: int64, minimum: 1}}]
-      responses:
-        '200': {description: Enviado, content: {application/json: {schema: {$ref: '#/components/schemas/WhatsAppNotification'}}}}
-        '400': {$ref: '#/components/responses/BadRequest'}
-        '404': {$ref: '#/components/responses/NotFound'}
-  /api/notificaciones/{id}/simular-respuesta-ganadero:
-    post:
-      operationId: simulateFarmerConfirmation
-      parameters: [{name: id, in: path, required: true, schema: {type: integer, format: int64, minimum: 1}}]
-      responses:
-        '200': {description: Confirmado, content: {application/json: {schema: {$ref: '#/components/schemas/WhatsAppNotification'}}}}
-        '400': {$ref: '#/components/responses/BadRequest'}
-        '404': {$ref: '#/components/responses/NotFound'}
-  /api/notificaciones/{id}/simular-confirmacion-ganadero:
-    post:
-      operationId: simulateFarmerConfirmationAlias
-      parameters: [{name: id, in: path, required: true, schema: {type: integer, format: int64, minimum: 1}}]
-      responses:
-        '200': {description: Confirmado, content: {application/json: {schema: {$ref: '#/components/schemas/WhatsAppNotification'}}}}
-        '400': {$ref: '#/components/responses/BadRequest'}
-        '404': {$ref: '#/components/responses/NotFound'}
+        '200': {description: Ledger inmutable}
 components:
   securitySchemes:
     basicAuth: {type: http, scheme: basic}
-  requestBodies:
-    Farm: {required: true, content: {application/json: {schema: {$ref: '#/components/schemas/Farm'}}}}
-    Animal: {required: true, content: {application/json: {schema: {$ref: '#/components/schemas/Animal'}}}}
-    ProtocolEvent: {required: true, content: {application/json: {schema: {$ref: '#/components/schemas/ProtocolEvent'}}}}
-  responses:
-    BadRequest: {description: Datos inválidos}
-    NotFound: {description: Recurso no encontrado}
   schemas:
-    Farm:
+    AlertaSistema:
       type: object
-      required: [name, regaCode, mainSpecies, managerName, whatsappPhone]
+      required: [clinicaId, destinatarioRol, tipoAlerta, titulo, mensaje, fechaProgramada]
       properties:
         id: {type: integer, format: int64}
-        name: {type: string, minLength: 1, maxLength: 120}
-        regaCode: {type: string, minLength: 1, maxLength: 30}
-        mainSpecies: {$ref: '#/components/schemas/Species'}
-        managerName: {type: string, minLength: 1, maxLength: 120}
-        whatsappPhone: {type: string, minLength: 7, maxLength: 30}
-    Animal:
-      type: object
-      required: [earTag, species, birthDate, healthStatus, farmId]
-      properties:
-        id: {type: integer, format: int64}
-        earTag: {type: string, minLength: 1, maxLength: 40}
-        name: {type: string, maxLength: 100}
-        species: {$ref: '#/components/schemas/Species'}
-        birthDate: {type: string, format: date}
-        healthStatus: {type: string, enum: [HEALTHY, SICK, QUARANTINE, DECEASED]}
-        farmId: {type: integer, format: int64, minimum: 1}
-    ProtocolEvent:
-      type: object
-      required: [eventType, title, applicationDate, withdrawalDays, farmId]
-      properties:
-        id: {type: integer, format: int64}
-        eventType: {type: string, enum: [VACUNACION, REVISION, TRATAMIENTO, PARTO]}
-        title: {type: string, minLength: 1, maxLength: 150}
-        medication: {type: string, maxLength: 120}
-        applicationDate: {type: string, format: date}
-        withdrawalDays: {type: integer, minimum: 0}
-        withdrawalEndDate: {type: string, format: date, readOnly: true}
-        nextReminderDays: {type: integer, minimum: 1, nullable: true}
-        status: {type: string, enum: [PROGRAMADO, APLICADO, PENDIENTE_REVISION]}
-        animalId: {type: integer, format: int64, minimum: 1}
-        farmId: {type: integer, format: int64, minimum: 1}
-    WhatsAppNotification:
-      type: object
-      properties:
-        id: {type: integer, format: int64}
-        destinationPhone: {type: string}
-        message: {type: string}
-        scheduledAt: {type: string, format: date-time}
-        sentAt: {type: string, format: date-time, nullable: true}
-        sendStatus: {type: string, enum: [PENDIENTE, ENVIADO, CONFIRMADO_GANADERO]}
-        protocolEventId: {type: integer, format: int64}
-    Species:
-      type: string
-      enum: [VACUNO_LECHE, VACUNO_CARNE, PORCINO, OVINO]
+        clinicaId: {type: integer, format: int64}
+        destinatarioRol: {type: string, enum: [VETERINARIAN, FARM_MANAGER, CLINIC_ADMIN]}
+        tipoAlerta: {type: string, enum: [RECORDATORIO_CICLICO, FIN_RETIRADA_MEDICAMENTO, URGENCIA_ANIMAL_ENFERMO, STOCK_BAJO]}
+        titulo: {type: string}
+        mensaje: {type: string}
+        fechaProgramada: {type: string, format: date-time}
+        leida: {type: boolean}
+        confirmadaPorGranja: {type: boolean}

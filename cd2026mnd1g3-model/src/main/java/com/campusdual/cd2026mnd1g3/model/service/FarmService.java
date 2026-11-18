@@ -30,7 +30,7 @@ public class FarmService {
 
     public FarmDto save(FarmDto dto) {
         if (dto == null || dto.getName() == null || dto.getName().isBlank() || dto.getRegaCode() == null
-                || dto.getMainSpecies() == null || dto.getManagerName() == null || dto.getWhatsappPhone() == null) {
+                || dto.getMainSpecies() == null || dto.getManagerName() == null) {
             throw new IllegalArgumentException("Los datos de la explotacion son obligatorios");
         }
 
@@ -43,7 +43,7 @@ public class FarmService {
         entity.setRegaCode(dto.getRegaCode().trim());
         entity.setMainSpecies(dto.getMainSpecies());
         entity.setManagerName(dto.getManagerName().trim());
-        entity.setWhatsappPhone(dto.getWhatsappPhone().trim());
+        entity.setClinicaId(dto.getClinicaId() == null ? 1L : dto.getClinicaId());
         return toDto(repository.save(entity));
     }
 
@@ -54,7 +54,9 @@ public class FarmService {
         entity.setRegaCode(dto.getRegaCode());
         entity.setMainSpecies(dto.getMainSpecies());
         entity.setManagerName(dto.getManagerName());
-        entity.setWhatsappPhone(dto.getWhatsappPhone());
+        if (dto.getClinicaId() != null) {
+            entity.setClinicaId(dto.getClinicaId());
+        }
         return toDto(repository.save(entity));
     }
 
@@ -66,7 +68,7 @@ public class FarmService {
 
     private FarmDto toDto(FarmEntity e) {
         FarmDto dto = new FarmDto(e.getId(), e.getName(), e.getRegaCode(), e.getMainSpecies(),
-                e.getManagerName(), e.getWhatsappPhone());
+                e.getManagerName(), e.getClinicaId());
         dto.setVeterinarianAssignedPhone(e.getVeterinarianAssignedPhone());
         return dto;
     }

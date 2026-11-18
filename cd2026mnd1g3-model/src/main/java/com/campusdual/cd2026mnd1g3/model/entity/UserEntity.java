@@ -46,6 +46,8 @@ public class UserEntity {
     @Enumerated(EnumType.STRING)
     @Column(name = "app_role", length = 30)
     private Role role;
+    @Column(name = "clinica_id", nullable = false)
+    private Long clinicaId = 1L;
 
     @ManyToMany(fetch = FetchType.EAGER)
     @JoinTable(
@@ -126,4 +128,6 @@ public class UserEntity {
     public void setRoles(Set<RoleEntity> roles) {
         this.roles = roles == null ? new HashSet<>() : roles;
     }
+    public Long getClinicaId() { return clinicaId; }
+    public void setClinicaId(Long clinicaId) { this.clinicaId = clinicaId; }
 }
