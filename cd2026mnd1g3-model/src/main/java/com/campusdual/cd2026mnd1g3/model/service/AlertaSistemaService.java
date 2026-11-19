@@ -10,7 +10,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.util.List;
 
 @Service
-@Transactional
+@Transactional("ganaderiaTransactionManager")
 public class AlertaSistemaService {
     private final AlertaSistemaRepository repository;
 
@@ -18,7 +18,7 @@ public class AlertaSistemaService {
         this.repository = repository;
     }
 
-    @Transactional(readOnly = true)
+    @Transactional(transactionManager = "ganaderiaTransactionManager", readOnly = true)
     public List<AlertaSistemaDto> findByClinica(Long clinicaId) {
         return repository.findByClinicaIdOrderByFechaProgramadaDesc(clinicaId).stream()
                 .map(this::toDto).toList();

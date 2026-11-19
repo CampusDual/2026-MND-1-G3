@@ -34,6 +34,19 @@ public class AnimalEntity {
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
     @JoinColumn(name = "farm_id", nullable = false)
     private FarmEntity farm;
+    @Column(name = "clinica_id", nullable = false)
+    private Long clinicaId = 1L;
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "owner_id")
+    private PatientOwnerEntity owner;
+    @Column(length = 30)
+    private String microchip;
+    @Column(length = 100)
+    private String breed;
+    @Column(name = "normalized_name", length = 100)
+    private String normalizedName;
+    @Column(name = "notifications_enabled", nullable = false)
+    private boolean notificationsEnabled = true;
 
     public Long getId() { return id; }
     public void setId(Long id) { this.id = id; }
@@ -55,4 +68,16 @@ public class AnimalEntity {
     public void setFechaFinRetirada(LocalDate fechaFinRetirada) { this.fechaFinRetirada = fechaFinRetirada; }
     public String getNotas() { return notas; }
     public void setNotas(String notas) { this.notas = notas; }
+    public Long getClinicaId() { return clinicaId; }
+    public void setClinicaId(Long clinicaId) { this.clinicaId = clinicaId; }
+    public PatientOwnerEntity getOwner() { return owner; }
+    public void setOwner(PatientOwnerEntity owner) { this.owner = owner; }
+    public String getMicrochip() { return microchip; }
+    public void setMicrochip(String microchip) { this.microchip = microchip; }
+    public String getBreed() { return breed; }
+    public void setBreed(String breed) { this.breed = breed; }
+    public String getNormalizedName() { return normalizedName; }
+    public void setNormalizedName(String normalizedName) { this.normalizedName = normalizedName; }
+    public boolean isNotificationsEnabled() { return notificationsEnabled; }
+    public void setNotificationsEnabled(boolean notificationsEnabled) { this.notificationsEnabled = notificationsEnabled; }
 }

@@ -1,0 +1,116 @@
+<section class="patient-directory" aria-label="Directorio de pacientes">
+  <header class="directory-header">
+    <div>
+      <span class="eyebrow">DIRECTORIO CLÍNICO</span>
+      <h2>Pacientes y propietarios</h2>
+    </div>
+  </header>
+
+  <section class="filters" aria-label="Filtros de pacientes">
+    <label>Dueño
+      <input [ngModel]="ownerName()" (ngModelChange)="updateOwnerName($event)" placeholder="Nombre y apellidos" />
+    </label>
+    <label>Mascota
+      <input [ngModel]="petName()" (ngModelChange)="updatePetName($event)" placeholder="Nombre de la mascota" />
+    </label>
+    <label>Microchip
+      <input [ngModel]="microchip()" (ngModelChange)="updateMicrochip($event)" [disabled]="withoutMicrochip()" placeholder="Exacto o últimos dígitos" />
+    </label>
+    <label class="check-filter">
+      <input type="checkbox" [checked]="withoutMicrochip()" (change)="setWithoutMicrochip($any($event.target).checked)" />
+      Solo sin microchip
+    </label>
+  </section>
+
+  <div class="species-pills" aria-label="Filtrar por especie">
+    @for (option of speciesOptions; track $index) {
+      <button type="button" [class.active]="species() === option" (click)="setSpecies(option)">{{ speciesLabel(option) }}</button>
+    }
+  </div>
+
+  @if (species()) {
+    <label class="breed-filter">Raza
+      <select [ngModel]="breed()" (ngModelChange)="setBreed($event)">
+        <option value="">Todas las razas</option>
+        @for (breedOption of breedsBySpecies[species()!]; track breedOption) {
+          <option [value]="breedOption">{{ breedOption }}</option>
+        }
+      </select>
+    </label>
+  }
+
+  @if (activeFilterCount() > 0) {
+    <div class="active-filters">
+      @if (ownerName()) { <button type="button" (click)="ownerName.set(''); persistAndLoad()">Dueño: {{ ownerName() }} ×</button> }
+      @if (petName()) { <button type="button" (click)="petName.set(''); persistAndLoad()">Mascota: {{ petName() }} ×</button> }
+      @if (microchip()) { <button type="button" (click)="microchip.set(''); persistAndLoad()">Microchip: {{ microchip() }} ×</button> }
+      @if (withoutMicrochip()) { <button type="button" (click)="setWithoutMicrochip(false)">Sin microchip ×</button> }
+      @if (species()) { <button type="button" (click)="setSpecies(null)">{{ species() }} ×</button> }
+      @if (breed()) { <button type="button" (click)="setBreed('')">{{ breed() }} ×</button> }
+      <button class="clear-filters" type="button" (click)="clearFilters()">Limpiar filtros</button>
+    </div>
+  }
+
+  @if (state() === 'loading') {
+    <div class="loading">Cargando pacientes…</div>
+  } @else if (state() === 'error') {
+    <div class="error-state"><p>No se pudo cargar el directorio.</p><button type="button" (click)="load()">Reintentar</button></div>
+  } @else if (state() === 'empty') {
+    <div class="empty-state"><p>No hay pacientes con estos filtros.</p><button type="button" (click)="clearFilters()">Limpiar filtros</button></div>
+  } @else {
+    <p class="result-count">Mostrando {{ page()?.content?.length ?? 0 }} de {{ page()?.totalElements ?? 0 }}</p>
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th><button type="button" (click)="setSort('name')">Paciente</button></th>
+            <th><button type="button" (click)="setSort('species')">Especie</button></th>
+            <th><button type="button" (click)="setSort('breed')">Raza</button></th>
+            <th>Microchip</th>
+            <th>Propietario</th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (patient of page()?.content ?? []; track patient.id) {
+            <tr (click)="openPatient(patient)">
+              <td><strong>{{ patient.name || 'Sin nombre' }}</strong></td>
+              <td>{{ patient.species }}</td>
+              <td>{{ patient.breed || 'Sin especificar' }}</td>
+              <td>{{ patient.microchip || 'Sin microchip' }}</td>
+              <td>{{ patient.owner?.fullName || 'Sin propietario' }}</td>
+            </tr>
+          }
+        </tbody>
+      </table>
+    </div>
+    @if ((page()?.totalPages ?? 0) > 1) {
+      <nav class="pagination" aria-label="Paginación de pacientes">
+        <button type="button" [disabled]="currentPage() === 0" (click)="changePage(currentPage() - 1)">Anterior</button>
+        <span>Página {{ currentPage() + 1 }} de {{ page()?.totalPages }}</span>
+        <button type="button" [disabled]="currentPage() >= (page()?.totalPages ?? 1) - 1" (click)="changePage(currentPage() + 1)">Siguiente</button>
+      </nav>
+    }
+  }
+
+  @if (selectedDetail()) {
+    <aside class="patient-drawer" aria-label="Ficha del paciente">
+      <button class="drawer-close" type="button" (click)="closeDrawer()">Cerrar ×</button>
+      <h2>{{ selectedDetail()?.patient?.name || 'Sin nombre' }}</h2>
+      <p>{{ selectedDetail()?.patient?.species }} · {{ selectedDetail()?.patient?.breed || 'Sin especificar' }}</p>
+      <p>{{ selectedDetail()?.patient?.microchip || 'Sin microchip' }}</p>
+      <h3>Propietario</h3>
+      <p>{{ selectedDetail()?.patient?.owner?.fullName || 'Sin propietario' }}</p>
+      @if (selectedDetail()?.patient?.owner?.phoneE164) {
+        <p>{{ selectedDetail()?.patient?.owner?.phoneE164 }}</p>
+      }
+      <p>Notificaciones internas: {{ selectedDetail()?.patient?.owner?.notificationsEnabled ? 'Activas' : 'Inactivas' }}</p>
+      <h3>Estado vacunal</h3>
+      <p>{{ selectedDetail()?.vaccinationStatus }}</p>
+      @if (selectedDetail()?.nextVaccinationDate) { <p>Próxima vacuna: {{ selectedDetail()?.nextVaccinationDate }}</p> }
+      <h3>Otras mascotas</h3>
+      @for (pet of selectedDetail()?.ownerPets ?? []; track pet.id) {
+        <button type="button" (click)="openPatient(pet)">{{ pet.name || 'Sin nombre' }} · {{ pet.species }}</button>
+      }
+    </aside>
+  }
+</section>

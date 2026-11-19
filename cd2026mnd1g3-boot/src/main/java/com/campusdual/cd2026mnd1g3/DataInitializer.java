@@ -46,10 +46,10 @@ public class DataInitializer implements CommandLineRunner {
             return;
         }
 
-        FarmEntity dairyFarm = createFarm("Ganadería El Roble", "ES2800000001",
-                Species.VACUNO_LECHE, "Laura García");
-        FarmEntity pigFarm = createFarm("Granja Los Pinos", "ES2800000002",
-                Species.PORCINO, "Miguel López");
+        FarmEntity dairyFarm = createFarm("Ganadería O Carballo S.L.", "ES150300001234",
+                Species.VACUNO_LECHE, "Manuel Rodríguez");
+        FarmEntity pigFarm = createFarm("Granja A Ponte", "ES360150005678",
+                Species.PORCINO, "José Martínez");
 
         AnimalEntity healthy = createAnimal("ES2800000001-001", "Bruma", Species.VACUNO_LECHE,
                 HealthStatus.HEALTHY, EstadoSanitario.SANO, dairyFarm, null);
@@ -60,6 +60,10 @@ public class DataInitializer implements CommandLineRunner {
                 HealthStatus.SICK, EstadoSanitario.ENFERMO, pigFarm, null);
         createAnimal("ES2800000002-002", "Roble", Species.PORCINO,
                 HealthStatus.QUARANTINE, EstadoSanitario.CUARENTENA, pigFarm, null);
+        createAnimal("ES011234567890", "Lúa", Species.VACUNO_LECHE,
+                HealthStatus.HEALTHY, EstadoSanitario.SANO, dairyFarm, null);
+        createAnimal("ES011234567891", "Sombra", Species.OVINO,
+                HealthStatus.SICK, EstadoSanitario.EN_TRATAMIENTO, pigFarm, null);
 
         createEvent(EventType.VACUNACION, "Revacunación anual",
                 LocalDate.now(), 0, 30, EventStatus.APLICADO, healthy, dairyFarm);
@@ -71,18 +75,19 @@ public class DataInitializer implements CommandLineRunner {
                 EventStatus.PROGRAMADO, sick, pigFarm);
 
         LoteStockEntity loteAmoxi = createMedicamentoYLote(
-                "Amoxicilina 15%", "Amoxicilina", "VACUNO/PORCINO",
+                "Amoxicilina Bovina LA", "Amoxicilina", "VACUNO/PORCINO",
                 CategoriaPran.B, 5, 20, "LOT-AMX-001");
         LoteStockEntity loteVacuna = createMedicamentoYLote(
-                "Vacuna BTV", "Virus vivo atenuado", "VACUNO",
-                CategoriaPran.C, 0, 10, "LOT-BTV-001");
+                "Vacuna IBR/BVD", "Antígenos IBR/BVD", "VACUNO",
+                CategoriaPran.C, 0, 10, "LOT-IBR-001");
         LoteStockEntity loteAntip = createMedicamentoYLote(
-                "Ivermectina 1%", "Ivermectina", "VACUNO/PORCINO",
+                "Ivermectina Inyectable", "Ivermectina", "VACUNO/PORCINO",
                 CategoriaPran.B, 14, 15, "LOT-IVM-001");
 
         createEntrada(loteAmoxi, 50);
         createEntrada(loteVacuna, 30);
         createEntrada(loteAntip, 40);
+        createSalida(loteAmoxi, 3.5, sick);
 
         createAlerta(DestinatarioRol.VETERINARIAN, TipoAlerta.URGENCIA_ANIMAL_ENFERMO,
                 "Animal enfermo", "Pino ha sido informado como enfermo.", pigFarm.getId(), sick.getId());
@@ -165,6 +170,18 @@ public class DataInitializer implements CommandLineRunner {
         movimiento.setTipoMovimiento(TipoMovimiento.ENTRADA_COMPRA);
         movimiento.setCantidad(cantidad);
         movimiento.setFechaHora(LocalDateTime.now());
+        movimientoRepository.save(movimiento);
+    }
+
+    private void createSalida(LoteStockEntity lote, double cantidad, AnimalEntity animal) {
+        MovimientoInventarioEntity movimiento = new MovimientoInventarioEntity();
+        movimiento.setClinicaId(1L);
+        movimiento.setLoteStock(lote);
+        movimiento.setTipoMovimiento(TipoMovimiento.SALIDA_GANADERIA);
+        movimiento.setCantidad(-cantidad);
+        movimiento.setFechaHora(LocalDateTime.now());
+        movimiento.setAnimalId(animal.getId());
+        movimiento.setExplotacionId(animal.getFarm().getId());
         movimientoRepository.save(movimiento);
     }
 

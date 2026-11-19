@@ -3,10 +3,11 @@
     <option name="ALTERNATIVE_JRE_PATH" value="temurin-25" />
     <option name="ALTERNATIVE_JRE_PATH_ENABLED" value="true" />
     <envs>
-      <env name="spring.profiles.active" value="p" />
+      <env name="SPRING_PROFILES_ACTIVE" value="p" />
     </envs>
     <option name="MAIN_CLASS_NAME" value="com.campusdual.cd2026mnd1g3.MainApplication" />
     <module name="cd2026mnd1g3-boot" />
+    <option name="VM_PARAMETERS" value="-Dspring.profiles.active=p" />
     <method v="2">
       <option name="Make" enabled="true" />
     </method>

@@ -18,7 +18,7 @@ import java.time.LocalDateTime;
 import java.util.List;
 
 @Service
-@Transactional
+@Transactional("ganaderiaTransactionManager")
 public class InventarioService {
     private final MedicamentoRepository medicamentoRepository;
     private final LoteStockRepository loteRepository;
@@ -35,12 +35,12 @@ public class InventarioService {
         this.alertaListener = alertaListener;
     }
 
-    @Transactional(readOnly = true)
+    @Transactional(transactionManager = "ganaderiaTransactionManager", readOnly = true)
     public List<MedicamentoDto> findMedicamentos(Long clinicaId) {
         return medicamentoRepository.findByClinicaId(clinicaId).stream().map(this::toMedicamentoDto).toList();
     }
 
-    @Transactional(readOnly = true)
+    @Transactional(transactionManager = "ganaderiaTransactionManager", readOnly = true)
     public List<LoteStockDto> findLotes(Long clinicaId) {
         return loteRepository.findAll().stream()
                 .filter(lote -> lote.getMedicamento().getClinicaId().equals(clinicaId))
@@ -49,7 +49,7 @@ public class InventarioService {
                 .toList();
     }
 
-    @Transactional(readOnly = true)
+    @Transactional(transactionManager = "ganaderiaTransactionManager", readOnly = true)
     public List<MovimientoInventarioDto> findMovimientos(Long clinicaId) {
         return movimientoRepository.findByClinicaIdOrderByFechaHoraDesc(clinicaId).stream()
                 .map(this::toMovimientoDto).toList();

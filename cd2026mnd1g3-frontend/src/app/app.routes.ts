@@ -1,17 +1,15 @@
 import { Routes } from '@angular/router';
-import { authGuard } from './core/auth.guard';
-import { LoginComponent } from './auth/login.component';
-import { ItWorksComponent } from './main/it-works.component';
-import { DashboardComponent } from './main/dashboard.component';
-import { PortalSelectorComponent } from './main/portal-selector.component';
-import { ClinicaDashboardComponent } from './main/clinica-dashboard.component';
+import { authGuard } from './core/auth/auth.guard';
+import { roleGuard } from './core/auth/role.guard';
+import { LoginComponent } from './features/login/login.component';
+import { DashboardComponent } from './features/ganaderia/dashboard.component';
+import { PortalSelectorComponent } from './features/portal/portal-selector.component';
+import { ClinicaDashboardComponent } from './features/clinica/clinica-dashboard.component';
 
 export const routes: Routes = [
 	{ path: 'login', component: LoginComponent },
-	{ path: 'it-works', component: ItWorksComponent, canActivate: [authGuard] },
-	{ path: 'dashboard', component: DashboardComponent, canActivate: [authGuard] },
-	{ path: 'ganaderia', component: DashboardComponent, canActivate: [authGuard] },
-	{ path: 'clinica', component: ClinicaDashboardComponent, canActivate: [authGuard] },
+	{ path: 'ganaderia', component: DashboardComponent, canActivate: [authGuard, roleGuard(['FARM_MANAGER', 'VETERINARIAN', 'CLINIC_ADMIN'])] },
+	{ path: 'clinica', component: ClinicaDashboardComponent, canActivate: [authGuard, roleGuard(['VETERINARIAN', 'CLINIC_ADMIN'])] },
 	{ path: 'portal', component: PortalSelectorComponent, canActivate: [authGuard] },
 	{ path: '', pathMatch: 'full', redirectTo: 'login' },
 	{ path: '**', redirectTo: 'login' }

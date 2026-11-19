@@ -25,7 +25,7 @@ import java.time.LocalDateTime;
  * Motor de protocolos sanitarios cíclicos y sus avisos ganaderos.
  */
 @Service
-@Transactional
+@Transactional("ganaderiaTransactionManager")
 public class ProtocoloCiclicoService {
 
     private final ProtocolEventRepository eventRepository;

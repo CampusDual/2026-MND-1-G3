@@ -4,5 +4,9 @@ public enum Species {
     VACUNO_LECHE,
     VACUNO_CARNE,
     PORCINO,
-    OVINO
+    OVINO,
+    PERRO,
+    GATO,
+    PAJARO,
+    OTRO
 }

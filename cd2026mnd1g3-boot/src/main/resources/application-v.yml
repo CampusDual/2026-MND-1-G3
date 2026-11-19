@@ -1,0 +1,12 @@
+spring:
+  datasource:
+    ganaderia:
+      url: jdbc:hsqldb:mem:ganaderiadb;sql.syntax_pgs=true
+      username: sa
+      password:
+      driver-class-name: org.hsqldb.jdbc.JDBCDriver
+    clinica:
+      url: jdbc:hsqldb:mem:clinicadb;sql.syntax_pgs=true
+      username: sa
+      password:
+      driver-class-name: org.hsqldb.jdbc.JDBCDriver

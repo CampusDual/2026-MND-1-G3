@@ -160,10 +160,12 @@
         <profile>
             <id>run_database</id>
             <properties>
-                <hsqldatabase.address>localhost</hsqldatabase.address>
+                <hsqldatabase.address>127.0.0.1</hsqldatabase.address>
                 <hsqldatabase.port>9001</hsqldatabase.port>
-                <hsqldatabase.path>file:./.local/hsqldb/appdb</hsqldatabase.path>
-                <hsqldatabase.name>appdb</hsqldatabase.name>
+                <hsqldatabase.ganaderia.path>file:./.local/hsqldb/ganaderiadb</hsqldatabase.ganaderia.path>
+                <hsqldatabase.clinica.path>file:./.local/hsqldb/clinicadb</hsqldatabase.clinica.path>
+                <hsqldatabase.ganaderia.name>ganaderiadb</hsqldatabase.ganaderia.name>
+                <hsqldatabase.clinica.name>clinicadb</hsqldatabase.clinica.name>
             </properties>
             <build>
                 <plugins>
@@ -199,9 +201,13 @@
                                 <argument>--port</argument>
                                 <argument>${hsqldatabase.port}</argument>
                                 <argument>--database.0</argument>
-                                <argument>${hsqldatabase.path}</argument>
+                                <argument>${hsqldatabase.ganaderia.path}</argument>
                                 <argument>--dbname.0</argument>
-                                <argument>${hsqldatabase.name}</argument>
+                                <argument>${hsqldatabase.ganaderia.name}</argument>
+                                <argument>--database.1</argument>
+                                <argument>${hsqldatabase.clinica.path}</argument>
+                                <argument>--dbname.1</argument>
+                                <argument>${hsqldatabase.clinica.name}</argument>
                                 <argument>--silent</argument>
                                 <argument>true</argument>
                             </arguments>
