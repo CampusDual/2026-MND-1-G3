@@ -1,7 +1,7 @@
 import { Injectable, inject } from '@angular/core';
 import { HttpClient, HttpHeaders } from '@angular/common/http';
-import { Observable, map } from 'rxjs';
-import { AuthService } from './auth/auth.service';
+import { Observable } from 'rxjs';
+import { AuthService } from './auth.service';
 
 export type AnimalHealthStatus = 'SANO' | 'EN_TRATAMIENTO' | 'EN_RETIRADA_MEDICAMENTO' | 'ENFERMO' | 'CUARENTENA';
 export type ProtocolEventType = 'VACUNACION' | 'TRATAMIENTO_MEDICO' | 'PARTO' | 'REVISION_PERIODICA';
@@ -17,6 +17,7 @@ export interface Farm {
   mainSpecies: string;
   managerName: string;
   clinicaId?: number;
+  veterinarianAssignedPhone?: string;
 }
 
 export interface Animal {
@@ -95,22 +96,8 @@ export class LivestockService {
   private readonly http = inject(HttpClient);
   private readonly auth = inject(AuthService);
   private options(): { headers: HttpHeaders } { return { headers: new HttpHeaders({ Authorization: this.auth.getAuthHeader() }) }; }
-  farms(): Observable<Farm[]> {
-    return this.http.get<Farm[]>('/api/explotaciones', this.options()).pipe(
-      map((farms: readonly Farm[]) => farms.map((farm: Farm) => ({
-        ...farm,
-        regaCode: farm.regaCode.trim().toUpperCase()
-      })))
-    );
-  }
-  animals(): Observable<Animal[]> {
-    return this.http.get<Animal[]>('/api/ganaderia/animales', this.options()).pipe(
-      map((animals: readonly Animal[]) => animals.map((animal: Animal) => ({
-        ...animal,
-        earTag: animal.earTag.trim().toUpperCase()
-      })))
-    );
-  }
+  farms(): Observable<Farm[]> { return this.http.get<Farm[]>('/api/explotaciones', this.options()); }
+  animals(): Observable<Animal[]> { return this.http.get<Animal[]>('/api/ganaderia/animales', this.options()); }
   protocols(): Observable<ProtocolEvent[]> { return this.http.get<ProtocolEvent[]>('/api/protocolos', this.options()); }
   alerts(): Observable<AlertaSistema[]> { return this.http.get<AlertaSistema[]>('/api/alertas', this.options()); }
   markAlertRead(id: number): Observable<AlertaSistema> { return this.http.post<AlertaSistema>(`/api/alertas/${id}/leida`, {}, this.options()); }

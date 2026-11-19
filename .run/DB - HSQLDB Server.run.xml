@@ -4,7 +4,7 @@
     <option name="ALTERNATIVE_JRE_PATH_ENABLED" value="true" />
     <option name="MAIN_CLASS_NAME" value="org.hsqldb.Server" />
     <module name="cd2026mnd1g3-boot" />
-    <option name="PROGRAM_PARAMETERS" value="--address 127.0.0.1 --port 9001 --database.0 file:./.local/hsqldb/ganaderiadb --dbname.0 ganaderiadb --database.1 file:./.local/hsqldb/clinicadb --dbname.1 clinicadb --silent true" />
+    <option name="PROGRAM_PARAMETERS" value="--address localhost --port 9001 --database.0 file:./.local/hsqldb/appdb --dbname.0 appdb --silent true" />
     <method v="2">
       <option name="Make" enabled="true" />
     </method>

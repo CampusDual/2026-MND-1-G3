@@ -1,0 +1,147 @@
+<main class="clinic-page">
+  <header class="clinic-header">
+    <div>
+      <span class="eyebrow">VETCONTROL · CLÍNICAS</span>
+      <h1>Gestión de Clínica y Consultas</h1>
+      <p>Consultas, recetas y trazabilidad sanitaria compartida.</p>
+    </div>
+    <div class="header-actions">
+      <a class="module-link" routerLink="/portal">← Cambiar de módulo</a>
+      <button class="bell-button" type="button" aria-label="Bandeja de alertas">
+        🔔 <strong *ngIf="unreadAlerts > 0">{{ unreadAlerts }}</strong>
+      </button>
+    </div>
+  </header>
+
+  <p class="error" *ngIf="error" role="alert">{{ error }}</p>
+
+  <nav class="tabs" aria-label="Secciones de clínica">
+    <button type="button" [class.active]="activeTab === 'consultas'" (click)="activeTab = 'consultas'">Consultas y recetas</button>
+    <button type="button" [class.active]="activeTab === 'inventario'" (click)="activeTab = 'inventario'">Inventario y trazabilidad</button>
+  </nav>
+
+  <section *ngIf="activeTab === 'consultas'">
+    <section class="cards" aria-label="Indicadores de la clínica">
+      <article class="kpi"><span>Consultas registradas</span><strong>{{ consultas.length }}</strong><small>Sesión actual</small></article>
+      <article class="kpi"><span>Medicamentos activos</span><strong>{{ medicamentos.length }}</strong><small>Catálogo compartido</small></article>
+      <article class="kpi"><span>Alertas sin leer</span><strong>{{ unreadAlerts }}</strong><small>Tiempo real</small></article>
+    </section>
+
+    <section class="consultation-grid">
+      <article class="panel">
+        <div class="panel-heading"><div><span class="eyebrow">RECETA</span><h2>Nueva consulta</h2></div></div>
+        <form (ngSubmit)="registerConsultation()">
+          <label>Fecha
+            <input type="date" [(ngModel)]="consultation.fecha" name="fecha" required>
+          </label>
+          <label>Animal
+            <select [(ngModel)]="consultation.animalId" name="animalId" required>
+              <option [ngValue]="0">Selecciona un animal</option>
+              <option *ngFor="let animal of animals" [ngValue]="animal.id">{{ animal.name || animal.earTag }} · {{ animal.earTag }}</option>
+            </select>
+          </label>
+          <label>Medicamento
+            <select [(ngModel)]="selectedMedicationId" name="medicationId" (ngModelChange)="onMedicationChange()">
+              <option [ngValue]="null">Selecciona medicamento</option>
+              <option *ngFor="let medicamento of medicamentos" [ngValue]="medicamento.id">
+                {{ medicamento.nombreComercial }} · {{ medicamento.principioActivo }}
+              </option>
+            </select>
+          </label>
+          <label>Lote
+            <select [(ngModel)]="consultation.loteStockId" name="loteStockId" [disabled]="selectedMedicationId === null">
+              <option [ngValue]="0">Selecciona lote con stock</option>
+              <option *ngFor="let lote of lotesDisponibles" [ngValue]="lote.id">
+                {{ lote.numeroLote }} · Stock {{ stockOfLote(lote.id) }}
+              </option>
+            </select>
+          </label>
+          <label>Cantidad administrada
+            <input type="number" min="0.01" step="0.01" [(ngModel)]="consultation.cantidad" name="cantidad">
+          </label>
+          <label>Motivo / diagnóstico
+            <textarea [(ngModel)]="consultation.motivo" name="motivo" rows="3" placeholder="Indica el motivo de la consulta"></textarea>
+          </label>
+          <button class="primary-button" type="submit">Registrar consulta y salida clínica</button>
+        </form>
+      </article>
+
+      <article class="panel">
+        <div class="panel-heading"><div><span class="eyebrow">HISTÓRICO</span><h2>Consultas registradas</h2></div></div>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>Fecha</th><th>Animal</th><th>Lote</th><th>Cantidad</th><th>Motivo</th></tr></thead>
+            <tbody>
+              <tr *ngFor="let consulta of consultas">
+                <td>{{ consulta.fecha }}</td>
+                <td>{{ animalName(consulta.animalId) }}</td>
+                <td>{{ loteNumber(consulta.loteStockId) }}</td>
+                <td>{{ consulta.cantidad }}</td>
+                <td>{{ consulta.motivo || '—' }}</td>
+              </tr>
+              <tr *ngIf="consultas.length === 0"><td colspan="5" class="empty">No hay consultas en esta sesión.</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </article>
+    </section>
+  </section>
+
+  <section *ngIf="activeTab === 'inventario'">
+    <section class="inventory-grid">
+      <article class="panel">
+        <div class="panel-heading"><div><span class="eyebrow">COMPRA</span><h2>Entrada de lote</h2></div></div>
+        <form (ngSubmit)="registerPurchaseEntry()">
+          <label>Lote existente
+            <select [(ngModel)]="entryLotId" name="entryLotId">
+              <option [ngValue]="null">Selecciona lote</option>
+              <option *ngFor="let lote of lotes" [ngValue]="lote.id">{{ lote.numeroLote }} · {{ lote.proveedor }}</option>
+            </select>
+          </label>
+          <label>Cantidad recibida
+            <input type="number" min="0.01" step="0.01" [(ngModel)]="entryQuantity" name="entryQuantity">
+          </label>
+          <button class="primary-button" type="submit">Registrar ENTRADA_COMPRA</button>
+        </form>
+      </article>
+
+      <article class="panel stock-panel">
+        <div class="panel-heading"><div><span class="eyebrow">STOCK ACTUAL</span><h2>Medicamentos y lotes</h2></div></div>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>Medicamento</th><th>PRAN</th><th>Stock</th><th>Lotes</th></tr></thead>
+            <tbody>
+              <tr *ngFor="let medicamento of medicamentos">
+                <td><strong>{{ medicamento.nombreComercial }}</strong><small>{{ medicamento.principioActivo }}</small></td>
+                <td>{{ medicamento.categoriaPran }}</td>
+                <td [class.low-stock]="stockOfMedication(medicamento.id) < medicamento.stockMinimoAlerta">{{ stockOfMedication(medicamento.id) }}</td>
+                <td>
+                  <span class="lot" *ngFor="let lote of lotes">{{ lote.medicamentoId === medicamento.id ? lote.numeroLote + ' (' + stockOfLote(lote.id) + ')' : '' }}</span>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </article>
+    </section>
+
+    <article class="panel ledger-panel">
+      <div class="panel-heading"><div><span class="eyebrow">LIBRO MAYOR</span><h2>Movimientos inmutables</h2></div></div>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>ID</th><th>Fecha</th><th>Tipo</th><th>Lote</th><th>Cantidad</th><th>Animal / explotación</th></tr></thead>
+          <tbody>
+            <tr *ngFor="let movimiento of movimientos">
+              <td>{{ movimiento.id }}</td>
+              <td>{{ movimiento.fechaHora | date:'dd/MM/yyyy HH:mm' }}</td>
+              <td><span class="status">{{ movimiento.tipoMovimiento }}</span></td>
+              <td>{{ loteNumber(movimiento.loteStockId) }}</td>
+              <td [class.out]="movimiento.cantidad < 0">{{ movimiento.cantidad }}</td>
+              <td>{{ animalName(movimiento.animalId) }} · {{ farmName(movimiento.explotacionId) }}</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </article>
+  </section>
+</main>

@@ -7,43 +7,6 @@ servers:
 security:
   - basicAuth: []
 paths:
-  /api/clinica/pacientes:
-    get:
-      summary: Directorio paginado de pacientes de la clínica
-      parameters:
-        - {name: ownerName, in: query, required: false, schema: {type: string, maxLength: 160}}
-        - {name: petName, in: query, required: false, schema: {type: string, maxLength: 100}}
-        - {name: microchip, in: query, required: false, schema: {type: string, maxLength: 30}}
-        - {name: withoutMicrochip, in: query, required: false, schema: {type: boolean, default: false}}
-        - {name: species, in: query, required: false, schema: {type: string, enum: [VACUNO_LECHE, VACUNO_CARNE, PORCINO, OVINO, PERRO, GATO, PAJARO, OTRO]}}
-        - {name: breed, in: query, required: false, schema: {type: string, maxLength: 100}}
-        - {name: page, in: query, required: false, schema: {type: integer, minimum: 0, default: 0}}
-        - {name: size, in: query, required: false, schema: {type: integer, minimum: 1, maximum: 100, default: 20}}
-        - {name: sort, in: query, required: false, schema: {type: string, enum: [name, species, breed, birthDate], default: name}}
-        - {name: direction, in: query, required: false, schema: {type: string, enum: [asc, desc], default: asc}}
-      responses:
-        '200':
-          description: Página de pacientes
-          content:
-            application/json:
-              schema: {$ref: '#/components/schemas/PatientPage'}
-        '400': {$ref: '#/components/responses/BadRequest'}
-        '401': {$ref: '#/components/responses/Unauthorized'}
-        '403': {$ref: '#/components/responses/Forbidden'}
-        '500': {$ref: '#/components/responses/InternalServer'}
-  /api/clinica/pacientes/{patientId}:
-    get:
-      parameters:
-        - {name: patientId, in: path, required: true, schema: {type: integer, format: int64, minimum: 1}}
-      responses:
-        '200':
-          description: Ficha detallada del paciente
-          content:
-            application/json:
-              schema: {$ref: '#/components/schemas/PatientDetail'}
-        '404': {$ref: '#/components/responses/NotFound'}
-        '403': {$ref: '#/components/responses/Forbidden'}
-        '500': {$ref: '#/components/responses/InternalServer'}
   /api/alertas:
     get:
       responses:
@@ -63,82 +26,7 @@ paths:
 components:
   securitySchemes:
     basicAuth: {type: http, scheme: basic}
-  responses:
-    BadRequest:
-      description: Datos inválidos
-      content:
-        application/json:
-          schema: {$ref: '#/components/schemas/ProblemDetail'}
-    Unauthorized:
-      description: No autenticado
-      content:
-        application/json:
-          schema: {$ref: '#/components/schemas/ProblemDetail'}
-    Forbidden:
-      description: Acceso denegado
-      content:
-        application/json:
-          schema: {$ref: '#/components/schemas/ProblemDetail'}
-    NotFound:
-      description: Paciente no encontrado
-      content:
-        application/json:
-          schema: {$ref: '#/components/schemas/ProblemDetail'}
-    InternalServer:
-      description: Error interno
-      content:
-        application/json:
-          schema: {$ref: '#/components/schemas/ProblemDetail'}
   schemas:
-    ProblemDetail:
-      type: object
-      required: [timestamp, status, error, message]
-      properties:
-        timestamp: {type: string, format: date-time}
-        status: {type: integer, format: int32}
-        error: {type: string}
-        message: {type: string}
-    PatientOwner:
-      type: object
-      required: [id, fullName, notificationsEnabled]
-      properties:
-        id: {type: integer, format: int64}
-        fullName: {type: string, minLength: 1, maxLength: 160}
-        phoneE164: {type: string, pattern: '^\\+[1-9][0-9]{7,14}$', nullable: true}
-        notificationsEnabled: {type: boolean}
-    PatientSummary:
-      type: object
-      required: [id, species, estadoSanitario]
-      properties:
-        id: {type: integer, format: int64}
-        name: {type: string, maxLength: 100, nullable: true}
-        species: {type: string, enum: [VACUNO_LECHE, VACUNO_CARNE, PORCINO, OVINO, PERRO, GATO, PAJARO, OTRO]}
-        breed: {type: string, maxLength: 100, nullable: true}
-        microchip: {type: string, maxLength: 30, nullable: true}
-        birthDate: {type: string, format: date}
-        estadoSanitario: {type: string}
-        owner: {$ref: '#/components/schemas/PatientOwner'}
-    PatientPage:
-      type: object
-      required: [content, totalElements, totalPages, page, size]
-      properties:
-        content:
-          type: array
-          items: {$ref: '#/components/schemas/PatientSummary'}
-        totalElements: {type: integer, format: int64}
-        totalPages: {type: integer, format: int32}
-        page: {type: integer, format: int32}
-        size: {type: integer, format: int32}
-    PatientDetail:
-      type: object
-      required: [patient, vaccinationStatus, ownerPets]
-      properties:
-        patient: {$ref: '#/components/schemas/PatientSummary'}
-        vaccinationStatus: {type: string, enum: [AL_DIA, PROXIMA, VENCIDA, SIN_DATOS]}
-        nextVaccinationDate: {type: string, format: date, nullable: true}
-        ownerPets:
-          type: array
-          items: {$ref: '#/components/schemas/PatientSummary'}
     AlertaSistema:
       type: object
       required: [clinicaId, destinatarioRol, tipoAlerta, titulo, mensaje, fechaProgramada]
