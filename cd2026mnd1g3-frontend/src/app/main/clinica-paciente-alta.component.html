@@ -1,0 +1,191 @@
+<main class="alta-page">
+  <header class="alta-header">
+    <div>
+      <span class="eyebrow">VETCONTROL · CLÍNICAS</span>
+      <h1>Alta de mascota</h1>
+      <p>Registra el propietario y la ficha clínica en un único guardado.</p>
+    </div>
+    <a class="module-link" routerLink="/clinica">← Volver a la clínica</a>
+  </header>
+
+  @if (loading()) {
+    <section class="skeleton" aria-label="Guardando mascota">
+      <div></div><div></div><div></div>
+    </section>
+  } @else if (error()) {
+    <section class="message error" role="alert">
+      <strong>{{ error() }}</strong>
+      <button type="button" (click)="retry()">Reintentar</button>
+    </section>
+  } @else if (success()) {
+    <section class="message success" role="status">
+      <strong>{{ success() }}</strong>
+      <div>
+        <a routerLink="/clinica">Ir al directorio</a>
+        <button type="button" (click)="success.set('')">Registrar otra</button>
+      </div>
+    </section>
+  }
+
+  <form [formGroup]="patientForm" (ngSubmit)="save()">
+    <section class="block">
+      <div class="block-heading"><span>1</span><h2>Propietario</h2></div>
+      <div class="mode-switch" role="group" aria-label="Modo de propietario">
+        <button type="button" [class.active]="existingOwnerMode()" (click)="setOwnerMode(true)">Cliente existente</button>
+        <button type="button" [class.active]="!existingOwnerMode()" (click)="setOwnerMode(false)">Cliente nuevo</button>
+      </div>
+
+      @if (existingOwnerMode()) {
+        <label>Buscar por nombre, apellidos, teléfono o DNI/NIF
+          <input [formControl]="searchForm" type="search" placeholder="Ej. José García">
+        </label>
+        @if (ownerDropdownOpen()) {
+          <div class="owner-results owner-dropdown">
+            @if (ownerSearchLoading()) {
+              <div class="owner-search-status">Buscando...</div>
+            } @else if (searchForm.value.trim().length >= 2 && ownerMatches().length === 0) {
+              <div class="owner-search-status">
+                <span>Sin resultados</span>
+                <button type="button" (click)="createNewOwner()">Crear como cliente nuevo</button>
+              </div>
+            } @else {
+            @for (owner of ownerMatches(); track owner.id) {
+              <button type="button" [class.selected]="selectedOwner()?.id === owner.id" (click)="selectOwner(owner)">
+                <strong>{{ owner.nombre }} {{ owner.apellidos }}</strong>
+                <small>{{ owner.telefono }} · DNI/NIF {{ owner.dniNif || 'Sin DNI' }}</small>
+                <span class="pet-count">{{ owner.mascotasTotales || 0 }} {{ (owner.mascotasTotales || 0) === 1 ? 'mascota' : 'mascotas' }}</span>
+              </button>
+            }
+            }
+          </div>
+        }
+        @if (selectedOwner(); as owner) {
+          <article class="owner-card">
+            <header>
+              <strong>{{ owner.nombre }} {{ owner.apellidos }}</strong>
+              <button type="button" (click)="changeOwner()">Cambiar cliente</button>
+            </header>
+            <span>{{ owner.telefono }} · DNI/NIF {{ owner.dniNif || 'Sin DNI' }}</span>
+            <span>{{ owner.email || 'Sin email' }}</span>
+            @if (ownerPets().length) {
+              <small>Mascotas existentes: {{ ownerPetNames() }}</small>
+            } @else {
+              <small>Este propietario aún no tiene mascotas registradas.</small>
+            }
+          </article>
+        }
+      } @else {
+        <fieldset [formGroup]="ownerForm" class="form-grid">
+          <label>Nombre<input formControlName="nombre" autocomplete="given-name"></label>
+          <label>Apellidos<input formControlName="apellidos" autocomplete="family-name"></label>
+          <label>Teléfono<input formControlName="telefono" placeholder="+34600123456"></label>
+          <label>Email<input formControlName="email" type="email"></label>
+          <label>DNI/NIF<input formControlName="dniNif"></label>
+        </fieldset>
+        @if (duplicateOwner(); as duplicate) {
+          <div class="duplicate" role="alert">
+            Ya existe {{ duplicate.nombre }} {{ duplicate.apellidos }} con esos datos.
+            <button type="button" (click)="existingOwnerMode.set(true); selectOwner(duplicate)">Usar este cliente</button>
+          </div>
+        }
+      }
+    </section>
+
+    <section class="block">
+      <div class="block-heading"><span>2</span><h2>Ficha de la mascota</h2></div>
+      @if (duplicatePetWarning()) {
+        <div class="duplicate" role="alert">{{ duplicatePetWarning() }}</div>
+      }
+      <div class="form-grid">
+        <label>Nombre
+          <input formControlName="nombre" placeholder="Nombre de la mascota">
+        </label>
+        <fieldset>
+          <legend>Especie</legend>
+          <div class="species">
+            @for (species of species; track species) {
+              <button type="button" [class.active]="patientForm.controls.especie.value === species"
+                (click)="patientForm.controls.especie.setValue(species)">
+                {{ species === 'PAJARO' ? 'Pájaro' : species === 'OTRO' ? 'Otro / Exótico' : species === 'PERRO' ? 'Perro' : 'Gato' }}
+              </button>
+            }
+          </div>
+        </fieldset>
+        <label>Raza
+          <select formControlName="raza">
+            @for (breed of breeds(); track breed) { <option [value]="breed">{{ breed }}</option> }
+          </select>
+        </label>
+        <label class="toggle-line">
+          <input formControlName="sinMicrochip" type="checkbox">
+          Aún no tiene microchip
+        </label>
+        @if (!patientForm.controls.sinMicrochip.value) {
+          <label>Microchip
+            <input formControlName="microchip" inputmode="numeric" placeholder="Número de microchip">
+          </label>
+        }
+      </div>
+
+      <fieldset class="age-mode">
+        <legend>Edad</legend>
+        <label><input type="radio" value="exact" formControlName="ageMode">Fecha exacta</label>
+        <label><input type="radio" value="approx" formControlName="ageMode">Edad aproximada</label>
+      </fieldset>
+      @if (patientForm.controls.ageMode.value === 'exact') {
+        <label>Fecha de nacimiento
+          <input formControlName="fechaNacimiento" type="date">
+        </label>
+      } @else {
+        <div class="form-grid">
+          <label>Años<input formControlName="edadAproxAnos" type="number" min="0" max="50"></label>
+          <label>Meses<input formControlName="edadAproxMeses" type="number" min="0" max="11"></label>
+        </div>
+      }
+
+      <div class="form-grid">
+        <label>Sexo
+          <select formControlName="sexo">
+            <option value="MACHO">Macho</option>
+            <option value="HEMBRA">Hembra</option>
+            <option value="DESCONOCIDO">Desconocido</option>
+          </select>
+        </label>
+        <label>Esterilizado
+          <select formControlName="esterilizado">
+            <option value="SI">Sí</option>
+            <option value="NO">No</option>
+            <option value="DESCONOCIDO">Desconocido</option>
+          </select>
+        </label>
+        <label>Peso inicial ({{ weightUnit }})
+          <input formControlName="pesoInicial" type="number" min="0.01" step="0.01">
+        </label>
+      </div>
+
+      <fieldset class="flags">
+        <legend>Banderas clínicas rápidas</legend>
+        <label><input formControlName="alergias" type="checkbox">Alergias</label>
+        <label><input formControlName="manejoNervioso" type="checkbox">Manejo nervioso</label>
+        <label><input formControlName="patologiaCronica" type="checkbox">Patología crónica</label>
+        <label class="wide">Nota breve
+          <textarea formControlName="notaBanderas" rows="3"></textarea>
+        </label>
+      </fieldset>
+    </section>
+
+    <section class="block optional">
+      <div class="block-heading"><span>3</span><h2>Primer aviso o tratamiento</h2></div>
+      <label class="toggle-line">
+        <input type="checkbox" disabled>
+        Programar primer aviso o tratamiento — Opcional
+      </label>
+      <p>El alta se guardará limpia si se deja desactivado.</p>
+    </section>
+
+    <footer class="actions">
+      <button class="primary" type="submit" [disabled]="!canSave()">Guardar mascota</button>
+      <button type="button" [disabled]="!canSave()" (click)="save(true)">Guardar y añadir otra mascota de este dueño</button>
+    </footer>
+  </form>
+</main>

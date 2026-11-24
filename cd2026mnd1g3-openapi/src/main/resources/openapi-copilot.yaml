@@ -7,6 +7,332 @@ servers:
 security:
   - basicAuth: []
 paths:
+  /api/ganaderia/explotaciones/{farmId}/animales/estado:
+    patch:
+      summary: Cambia estado sanitario masivo
+      parameters:
+        - {name: farmId, in: path, required: true, schema: {type: integer, format: int64}}
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: '#/components/schemas/GanaderiaEstadoMasivoRequest'}
+      responses:
+        '200': {description: Numero de animales actualizados}
+        '400': {$ref: '#/components/responses/BadRequest'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+  /api/ganaderia/explotaciones/{farmId}/protocolos/bloque:
+    post:
+      summary: Aplica protocolo o vacunacion masiva
+      parameters:
+        - {name: farmId, in: path, required: true, schema: {type: integer, format: int64}}
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: '#/components/schemas/GanaderiaProtocoloMasivoRequest'}
+      responses:
+        '200': {description: Numero de protocolos creados}
+        '400': {$ref: '#/components/responses/BadRequest'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+  /api/ganaderia/explotaciones/{farmId}/animales/buscar:
+    get:
+      summary: Busca un animal por crotal exacto dentro de explotacion
+      parameters:
+        - {name: farmId, in: path, required: true, schema: {type: integer, format: int64}}
+        - {name: crotal, in: query, required: true, schema: {type: string, maxLength: 40}}
+      responses:
+        '200': {description: Animal encontrado}
+        '404': {$ref: '#/components/responses/NotFound'}
+  /api/clinica/consultas:
+    get:
+      summary: Lista consultas vinculadas a pacientes de clinica
+      responses:
+        '200': {description: Consultas clinicas}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+    post:
+      summary: Crea una consulta para una mascota
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: '#/components/schemas/AltaConsultaClinicaRequest'}
+      responses:
+        '201': {description: Consulta creada}
+        '400': {$ref: '#/components/responses/BadRequest'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '404': {$ref: '#/components/responses/NotFound'}
+  /api/clinica/recetas:
+    get:
+      summary: Lista recetas vinculadas a consultas y pacientes
+      responses:
+        '200': {description: Recetas clinicas}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+    post:
+      summary: Crea una receta de una consulta clinica
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: '#/components/schemas/AltaRecetaClinicaRequest'}
+      responses:
+        '201': {description: Receta creada}
+        '400': {$ref: '#/components/responses/BadRequest'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '404': {$ref: '#/components/responses/NotFound'}
+  /api/ganaderia/operaciones-campo/sync:
+    post:
+      summary: Sincroniza operaciones locales de campo
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: '#/components/schemas/GanaderiaOperacionCampoSync'}
+      responses:
+        '200': {description: Operaciones sincronizadas}
+        '400': {$ref: '#/components/responses/BadRequest'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '500': {$ref: '#/components/responses/InternalServer'}
+  /api/ganaderia/explotaciones/{farmId}/animales:
+    post:
+      summary: Alta individual o lote dentro de una explotacion
+      parameters:
+        - {name: farmId, in: path, required: true, schema: {type: integer, format: int64}}
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: '#/components/schemas/AltaGanaderiaAnimalRequest'}
+      responses:
+        '201': {description: Animal o lote creado}
+        '400': {$ref: '#/components/responses/BadRequest'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '409': {$ref: '#/components/responses/Conflict'}
+        '500': {$ref: '#/components/responses/InternalServer'}
+  /api/ganaderia/explotaciones/{farmId}/animales/clasificar:
+    patch:
+      summary: Clasifica o reubica animales seleccionados
+      parameters:
+        - {name: farmId, in: path, required: true, schema: {type: integer, format: int64}}
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: '#/components/schemas/ClasificacionGanaderiaRequest'}
+      responses:
+        '204': {description: Clasificacion aplicada}
+        '400': {$ref: '#/components/responses/BadRequest'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '404': {$ref: '#/components/responses/NotFound'}
+        '500': {$ref: '#/components/responses/InternalServer'}
+  /api/ganaderia/explotaciones/{farmId}/opciones-clasificacion:
+    get:
+      summary: Catalogo usado y recomendado de subtipos y ubicaciones
+      parameters:
+        - {name: farmId, in: path, required: true, schema: {type: integer, format: int64}}
+      responses:
+        '200':
+          description: Opciones combinables sin duplicados
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/OpcionesClasificacion'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '404': {$ref: '#/components/responses/NotFound'}
+        '500': {$ref: '#/components/responses/InternalServer'}
+  /api/ganaderia/explotaciones/resumen:
+    get:
+      summary: Directorio paginado ligero de explotaciones
+      parameters:
+        - {name: search, in: query, required: false, schema: {type: string, maxLength: 120}}
+      responses:
+        '200':
+          description: Resumen agregado por explotacion
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '500': {$ref: '#/components/responses/InternalServer'}
+  /api/ganaderia/explotaciones/{farmId}/grupos:
+    get:
+      summary: Grupos resumidos de una explotacion
+      parameters:
+        - {name: farmId, in: path, required: true, schema: {type: integer, format: int64}}
+        - {name: type, in: query, required: true, schema: {$ref: '#/components/schemas/GanaderiaGroupType'}}
+      responses:
+        '200': {description: Grupos calculados con GROUP BY}
+        '400': {$ref: '#/components/responses/BadRequest'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '404': {$ref: '#/components/responses/NotFound'}
+        '500': {$ref: '#/components/responses/InternalServer'}
+  /api/ganaderia/explotaciones/{farmId}/grupos/{groupId}/animales:
+    get:
+      summary: Animales paginados de un grupo seleccionado
+      parameters:
+        - {name: farmId, in: path, required: true, schema: {type: integer, format: int64}}
+        - {name: groupId, in: path, required: true, schema: {type: string, maxLength: 80}}
+        - {name: type, in: query, required: true, schema: {$ref: '#/components/schemas/GanaderiaGroupType'}}
+        - {name: search, in: query, required: false, schema: {type: string, maxLength: 120}}
+        - {name: page, in: query, required: false, schema: {type: integer, minimum: 0, default: 0}}
+        - {name: size, in: query, required: false, schema: {type: integer, minimum: 1, maximum: 100, default: 20}}
+        - {name: sort, in: query, required: false, schema: {type: string, example: earTag,asc}}
+      responses:
+        '200': {description: Pagina determinista de animales o lotes}
+        '400': {$ref: '#/components/responses/BadRequest'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '404': {$ref: '#/components/responses/NotFound'}
+        '500': {$ref: '#/components/responses/InternalServer'}
+  /api/clinica/avisos:
+    get:
+      summary: Directorio operativo paginado de avisos clinicos
+      parameters:
+        - {name: page, in: query, schema: {type: integer, minimum: 0, default: 0}}
+        - {name: size, in: query, schema: {type: integer, minimum: 1, maximum: 100, default: 20}}
+        - {name: sort, in: query, schema: {type: string, example: fechaObjetivo,asc}}
+      responses:
+        '200': {description: Avisos encontrados}
+        '400': {$ref: '#/components/responses/BadRequest'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '500': {$ref: '#/components/responses/InternalServer'}
+    post:
+      summary: Crea un aviso clinico
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: '#/components/schemas/AvisoClinicoRequest'}
+      responses:
+        '201': {description: Aviso creado}
+        '400': {$ref: '#/components/responses/BadRequest'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '404': {$ref: '#/components/responses/NotFound'}
+        '422': {$ref: '#/components/responses/Unprocessable'}
+        '500': {$ref: '#/components/responses/InternalServer'}
+  /api/clinica/avisos/{avisoId}/estado:
+    post:
+      summary: Cambia el estado manual del aviso
+      parameters:
+        - {name: avisoId, in: path, required: true, schema: {type: integer, format: int64}}
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: '#/components/schemas/CambioEstadoAviso'}
+      responses:
+        '200': {description: Estado actualizado}
+        '400': {$ref: '#/components/responses/BadRequest'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '404': {$ref: '#/components/responses/NotFound'}
+        '409': {$ref: '#/components/responses/Conflict'}
+        '500': {$ref: '#/components/responses/InternalServer'}
+  /api/clinica/avisos/{avisoId}/intentado:
+    post:
+      summary: Registra un intento de contacto
+      parameters:
+        - {name: avisoId, in: path, required: true, schema: {type: integer, format: int64}}
+      responses:
+        '200': {description: Intento registrado}
+        '400': {$ref: '#/components/responses/BadRequest'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '404': {$ref: '#/components/responses/NotFound'}
+        '500': {$ref: '#/components/responses/InternalServer'}
+  /api/clinica/avisos/{avisoId}/posponer:
+    post:
+      summary: Pospone un aviso a una fecha concreta
+      parameters:
+        - {name: avisoId, in: path, required: true, schema: {type: integer, format: int64}}
+        - {name: nuevaFecha, in: query, required: true, schema: {type: string, format: date}}
+      responses:
+        '200': {description: Aviso pospuesto}
+        '400': {$ref: '#/components/responses/BadRequest'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '404': {$ref: '#/components/responses/NotFound'}
+        '500': {$ref: '#/components/responses/InternalServer'}
+  /api/clinica/pacientes/alta:
+    post:
+      summary: Alta atomica de propietario y mascota
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: '#/components/schemas/AltaPacienteRequest'}
+      responses:
+        '201':
+          description: Mascota y propietario registrados
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/AltaPacienteResponse'}
+        '400': {$ref: '#/components/responses/BadRequest'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '409': {$ref: '#/components/responses/Conflict'}
+        '422': {$ref: '#/components/responses/Unprocessable'}
+        '500': {$ref: '#/components/responses/InternalServer'}
+  /api/clinica/pacientes/propietarios/buscar:
+    get:
+      summary: Busca propietarios por nombre, telefono o DNI/NIF
+      parameters:
+        - {name: termino, in: query, required: true, schema: {type: string, minLength: 1, maxLength: 250}}
+      responses:
+        '200':
+          description: Coincidencias
+          content:
+            application/json:
+              schema:
+                type: array
+                items: {$ref: '#/components/schemas/PropietarioClinica'}
+        '400': {$ref: '#/components/responses/BadRequest'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '500': {$ref: '#/components/responses/InternalServer'}
+  /api/clinica/pacientes/propietarios/duplicado:
+    get:
+      summary: Detecta propietario duplicado por telefono o DNI/NIF
+      parameters:
+        - {name: telefono, in: query, required: false, schema: {type: string, pattern: '^\+[1-9][0-9]{7,14}$'}}
+        - {name: dniNif, in: query, required: false, schema: {type: string, maxLength: 20}}
+      responses:
+        '200':
+          description: Propietario encontrado o nulo
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - {$ref: '#/components/schemas/PropietarioClinica'}
+                  - {type: 'null'}
+        '400': {$ref: '#/components/responses/BadRequest'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '500': {$ref: '#/components/responses/InternalServer'}
+  /api/clinica/pacientes/razas:
+    get:
+      summary: Catalogo compartido de razas por especie
+      parameters:
+        - {name: especie, in: query, required: true, schema: {$ref: '#/components/schemas/EspecieMascota'}}
+      responses:
+        '200':
+          description: Lista de razas
+          content:
+            application/json:
+              schema:
+                type: array
+                items: {type: string}
+        '400': {$ref: '#/components/responses/BadRequest'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '500': {$ref: '#/components/responses/InternalServer'}
   /api/alertas:
     get:
       responses:
@@ -27,6 +353,242 @@ components:
   securitySchemes:
     basicAuth: {type: http, scheme: basic}
   schemas:
+    GanaderiaEstadoMasivoRequest:
+      type: object
+      required: [animalIds, estadoSanitario]
+      properties:
+        animalIds:
+          type: array
+          minItems: 1
+          items: {type: integer, format: int64}
+        estadoSanitario:
+          type: string
+          enum: [SANO, EN_TRATAMIENTO, ENFERMO]
+    GanaderiaProtocoloMasivoRequest:
+      type: object
+      required: [animalIds, eventType, title, applicationDate]
+      properties:
+        animalIds:
+          type: array
+          minItems: 1
+          items: {type: integer, format: int64}
+        eventType:
+          type: string
+          enum: [VACUNACION, TRATAMIENTO_MEDICO, PARTO, REVISION_PERIODICA]
+        title: {type: string, maxLength: 150}
+        applicationDate: {type: string, format: date}
+        withdrawalDays: {type: integer, minimum: 0}
+        withdrawalEndDate: {type: string, format: date, nullable: true}
+        medication: {type: string, maxLength: 120, nullable: true}
+        nextCycleDays: {type: integer, minimum: 0, nullable: true}
+    AltaConsultaClinicaRequest:
+      type: object
+      required: [pacienteId, fechaConsulta]
+      properties:
+        pacienteId: {type: integer, format: int64}
+        fechaConsulta: {type: string, format: date-time}
+        motivo: {type: string, maxLength: 500, nullable: true}
+        notas: {type: string, maxLength: 2000, nullable: true}
+        proximaVacuna: {type: string, format: date, nullable: true}
+    AltaRecetaClinicaRequest:
+      type: object
+      required: [consultaId, pacienteId, fechaEmision]
+      properties:
+        consultaId: {type: integer, format: int64}
+        pacienteId: {type: integer, format: int64}
+        medicamentoId: {type: integer, format: int64, nullable: true}
+        loteStockId: {type: integer, format: int64, nullable: true}
+        indicaciones: {type: string, maxLength: 1000, nullable: true}
+        fechaEmision: {type: string, format: date}
+    GanaderiaOperacionCampo:
+      type: object
+      required: [operationId, farmId, tipoOperacion]
+      properties:
+        operationId: {type: string, maxLength: 64}
+        farmId: {type: integer, format: int64}
+        animalId: {type: integer, format: int64, nullable: true}
+        tipoOperacion: {type: string, maxLength: 40}
+        detalle: {type: string, maxLength: 2000, nullable: true}
+    GanaderiaOperacionCampoSync:
+      type: object
+      required: [operaciones]
+      properties:
+        operaciones:
+          type: array
+          minItems: 1
+          items: {$ref: '#/components/schemas/GanaderiaOperacionCampo'}
+    AltaGanaderiaAnimalRequest:
+      type: object
+      required: [crotal]
+      properties:
+        crotal: {type: string, minLength: 1, maxLength: 40}
+        nombre: {type: string, maxLength: 100, nullable: true}
+        especie: {type: string, enum: [VACUNO_LECHE, VACUNO_CARNE, PORCINO, OVINO], nullable: true}
+        subtipo: {type: string, maxLength: 40, nullable: true}
+        ubicacion: {type: string, maxLength: 80, nullable: true}
+        estadoSanitario: {type: string, enum: [SANO, EN_TRATAMIENTO, ENFERMO], default: SANO}
+        cabezas: {type: integer, minimum: 1, default: 1}
+    ClasificacionGanaderiaRequest:
+      type: object
+      required: [animalIds]
+      properties:
+        animalIds:
+          type: array
+          minItems: 1
+          items: {type: integer, format: int64}
+        subtipo: {type: string, maxLength: 40, nullable: true}
+        ubicacion: {type: string, maxLength: 80, nullable: true}
+        estadoSanitario: {type: string, enum: [SANO, EN_TRATAMIENTO, ENFERMO], nullable: true}
+    OpcionesClasificacion:
+      type: object
+      required: [subtipos, ubicaciones, subtiposRecomendados, ubicacionesRecomendadas]
+      properties:
+        subtipos:
+          type: array
+          items: {type: string}
+        ubicaciones:
+          type: array
+          items: {type: string}
+        subtiposRecomendados:
+          type: array
+          items: {type: string}
+        ubicacionesRecomendadas:
+          type: array
+          items: {type: string}
+    GanaderiaGroupType:
+      type: string
+      enum: [SUBTIPO, UBICACION, ESTADO_SANITARIO]
+    GanaderiaSubtype:
+      type: object
+      required: [groupId, label, heads, percentage]
+      properties:
+        groupId: {type: string}
+        label: {type: string}
+        heads: {type: integer, format: int64, minimum: 0}
+        percentage: {type: number, minimum: 0, maximum: 100}
+    GanaderiaFarmSummary:
+      type: object
+      required: [ownerId, farmId, clinicaId, name, regaCode, mainSpecies, totalHeads]
+      properties:
+        ownerId: {type: integer, format: int64}
+        farmId: {type: integer, format: int64}
+        clinicaId: {type: integer, format: int64}
+        name: {type: string, maxLength: 120}
+        regaCode: {type: string, maxLength: 30}
+        mainSpecies: {type: string}
+        totalHeads: {type: integer, format: int64, minimum: 0}
+        subtypes:
+          type: array
+          items: {$ref: '#/components/schemas/GanaderiaSubtype'}
+        activeAlerts: {type: integer, format: int64, minimum: 0}
+        pendingActions: {type: integer, format: int64, minimum: 0}
+    GanaderiaGroup:
+      type: object
+      required: [groupId, label, heads, percentage]
+      properties:
+        groupId: {type: string}
+        label: {type: string}
+        heads: {type: integer, format: int64, minimum: 0}
+        percentage: {type: number, minimum: 0, maximum: 100}
+        activeAlerts: {type: integer, format: int64, minimum: 0}
+        pendingActions: {type: integer, format: int64, minimum: 0}
+    CategoriaAvisoClinico:
+      type: string
+      enum: [VACUNACION, TRATAMIENTO, REVISION, ESTACIONAL]
+    EstadoAvisoClinico:
+      type: string
+      enum: [PENDIENTE, INTENTADO, CONTACTADO, CITA_AGENDADA, POSPUESTA, DESCARTADA]
+    MotivoDescarteAviso:
+      type: string
+      enum: [YA_REALIZADO, CAMBIO_CRITERIO, PROPIETARIO_RECHAZO, FALLECIMIENTO_BAJA, OTRO]
+    AvisoClinicoRequest:
+      type: object
+      required: [pacienteId, categoria, titulo, fechaObjetivo]
+      properties:
+        pacienteId: {type: integer, format: int64}
+        categoria: {$ref: '#/components/schemas/CategoriaAvisoClinico'}
+        titulo: {type: string, minLength: 1, maxLength: 150}
+        detalleClinico: {type: string, maxLength: 2000, nullable: true}
+        fechaObjetivo: {type: string, format: date}
+        fechaInicio: {type: string, format: date, nullable: true}
+        fechaFin: {type: string, format: date, nullable: true}
+        progreso: {type: string, maxLength: 30, nullable: true}
+    CambioEstadoAviso:
+      type: object
+      required: [estado]
+      properties:
+        estado: {$ref: '#/components/schemas/EstadoAvisoClinico'}
+        nuevaFecha: {type: string, format: date, nullable: true}
+        motivoDescarte: {$ref: '#/components/schemas/MotivoDescarteAviso'}
+        motivoTexto: {type: string, maxLength: 500, nullable: true}
+        confirmarFallecimiento:
+          type: boolean
+          description: Confirmacion de doble accion obligatoria para fallecimiento/baja
+    EspecieMascota:
+      type: string
+      enum: [PERRO, GATO, PAJARO, OTRO]
+    SexoMascota:
+      type: string
+      enum: [MACHO, HEMBRA, DESCONOCIDO]
+    EstadoEsterilizacion:
+      type: string
+      enum: [SI, NO, DESCONOCIDO]
+    PropietarioClinica:
+      type: object
+      required: [id, nombre, apellidos, telefono, notificacionesInternas]
+      properties:
+        id: {type: integer, format: int64}
+        nombre: {type: string, maxLength: 120}
+        apellidos: {type: string, maxLength: 120}
+        dniNif: {type: string, maxLength: 20, nullable: true}
+        telefono:
+          type: string
+          pattern: '^\+[1-9][0-9]{7,14}$'
+          example: '+34600123456'
+        email: {type: string, format: email, nullable: true, maxLength: 160}
+        notificacionesInternas: {type: boolean}
+        mascotasTotales: {type: integer, format: int64, minimum: 0}
+    AltaPropietarioRequest:
+      type: object
+      required: [nombre, apellidos, telefono]
+      properties:
+        nombre: {type: string, maxLength: 120}
+        apellidos: {type: string, maxLength: 120}
+        dniNif: {type: string, maxLength: 20, nullable: true}
+        telefono:
+          type: string
+          pattern: '^\+[1-9][0-9]{7,14}$'
+        email: {type: string, format: email, nullable: true}
+    AltaPacienteRequest:
+      type: object
+      required: [nombre, especie, sinMicrochip, fechaNacimientoEstimada, sexo, esterilizado]
+      properties:
+        clienteExistenteId: {type: integer, format: int64, nullable: true}
+        nuevoCliente:
+          $ref: '#/components/schemas/AltaPropietarioRequest'
+          nullable: true
+        nombre: {type: string, minLength: 1, maxLength: 100}
+        especie: {$ref: '#/components/schemas/EspecieMascota'}
+        raza: {type: string, maxLength: 100, nullable: true}
+        microchip: {type: string, maxLength: 30, nullable: true}
+        sinMicrochip: {type: boolean}
+        fechaNacimiento: {type: string, format: date, nullable: true}
+        fechaNacimientoEstimada: {type: boolean}
+        edadAproxAnos: {type: integer, minimum: 0, maximum: 50, nullable: true}
+        edadAproxMeses: {type: integer, minimum: 0, maximum: 11, nullable: true}
+        sexo: {$ref: '#/components/schemas/SexoMascota'}
+        esterilizado: {$ref: '#/components/schemas/EstadoEsterilizacion'}
+        pesoInicial: {type: number, exclusiveMinimum: 0, nullable: true}
+        alergias: {type: boolean}
+        manejoNervioso: {type: boolean}
+        patologiaCronica: {type: boolean}
+        notaBanderas: {type: string, maxLength: 500, nullable: true}
+    AltaPacienteResponse:
+      type: object
+      required: [paciente, propietario]
+      properties:
+        paciente: {type: object}
+        propietario: {$ref: '#/components/schemas/PropietarioClinica'}
     AlertaSistema:
       type: object
       required: [clinicaId, destinatarioRol, tipoAlerta, titulo, mensaje, fechaProgramada]

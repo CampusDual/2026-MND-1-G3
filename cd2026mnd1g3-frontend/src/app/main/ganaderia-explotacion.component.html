@@ -1,0 +1,174 @@
+<main class="farm-page">
+  <nav class="breadcrumbs">
+    <a routerLink="/ganaderia/directorio">Directorio de Explotaciones</a>
+    <span>/</span>
+    <strong>{{ farmName() }} ({{ farmHeads() }} cabezas)</strong>
+  </nav>
+
+  <header class="farm-header">
+    <div>
+      <span class="eyebrow">ESPACIO AISLADO</span>
+      <h1>{{ farmName() }}</h1>
+    </div>
+    <div class="mode-switch">
+      <button type="button" [class.active]="groupType() === 'SUBTIPO'" (click)="setGroupType('SUBTIPO')">Por subtipo</button>
+      <button type="button" [class.active]="groupType() === 'UBICACION'" (click)="setGroupType('UBICACION')">Por ubicación</button>
+      <button type="button" [class.active]="groupType() === 'ESTADO_SANITARIO'" (click)="setGroupType('ESTADO_SANITARIO')">Por estado</button>
+      <button type="button" class="primary-action" (click)="openAddDrawer()">+ Añadir animal / lote</button>
+    </div>
+  </header>
+
+  @if (loading() && groups().length === 0) {
+    <section class="skeleton"><div></div><div></div><div></div></section>
+  } @else if (error()) {
+    <section class="message error" role="alert">
+      <strong>{{ error() }}</strong>
+      <button type="button" (click)="retry()">Reintentar</button>
+    </section>
+  } @else {
+    <section class="group-grid" aria-label="Grupos del rebaño">
+      @for (group of groups(); track group.groupId) {
+        <button type="button" class="group-card" [class.active]="selectedGroup()?.groupId === group.groupId" (click)="selectGroup(group)">
+          <strong>{{ group.label }}</strong>
+          <span>{{ group.heads }} cabezas · {{ group.percentage | number:'1.0-1' }}%</span>
+          <small>{{ group.activeAlerts }} alertas · {{ group.pendingActions }} actuaciones</small>
+        </button>
+      }
+    </section>
+
+    @if (selectedGroup(); as group) {
+      <section class="animals-panel">
+        <header>
+          <div><span class="eyebrow">NIVEL 3</span><h2>{{ group.label }}</h2></div>
+          <label>Buscar
+            <input type="search" [ngModel]="search()" (ngModelChange)="search.set($event); setPage(0)">
+          </label>
+        </header>
+        @if (selectedIds().length) {
+          <div class="selection-bar">
+            <strong>{{ selectedIds().length }} animales seleccionados</strong>
+            <label>Asignar Subtipo
+              <select [ngModel]="subtypeAction()" (ngModelChange)="subtypeAction.set($event)">
+                <option value="">Selecciona...</option>
+                @for (option of opciones().subtiposRecomendados; track option) { <option [value]="option">{{ option }}</option> }
+                @for (option of opciones().subtipos; track option) { <option [value]="option">{{ option }}</option> }
+              </select>
+              <button type="button" (click)="aplicarSubtipoMasivo()">Aplicar</button>
+            </label>
+            <label>Asignar Ubicación
+              <select [ngModel]="locationAction()" (ngModelChange)="locationAction.set($event)">
+                <option value="">Selecciona...</option>
+                @for (option of opciones().ubicacionesRecomendadas; track option) { <option [value]="option">{{ option }}</option> }
+                @for (option of opciones().ubicaciones; track option) { <option [value]="option">{{ option }}</option> }
+              </select>
+              <button type="button" (click)="aplicarUbicacionMasiva()">Aplicar</button>
+            </label>
+            <button type="button" class="deselect" (click)="deseleccionar()">Deseleccionar</button>
+          </div>
+        }
+        @if (loading()) {
+          <div class="table-skeleton"></div>
+        } @else if (animals().length === 0) {
+          <div class="message empty"><strong>No hay animales en este grupo.</strong></div>
+        } @else {
+          <table>
+            <thead><tr><th></th><th>Crotal / lote</th><th>Nombre</th><th>Subtipo</th><th>Ubicación</th><th>Estado</th><th>Cabezas</th></tr></thead>
+            <tbody>
+              @for (animal of animals(); track animal.id) {
+                <tr (click)="openDetail(animal)">
+                  <td><input type="checkbox" [checked]="selectedIds().includes(animal.id)" (click)="$event.stopPropagation(); toggleSelected(animal.id)"></td>
+                  <td><strong>{{ animal.earTag }}</strong></td>
+                  <td>{{ animal.name || 'Sin nombre' }}</td>
+                  <td>{{ animal.subtipo || 'Sin clasificar' }}</td>
+                  <td>{{ animal.ubicacion || 'Sin ubicación' }}</td>
+                  <td>{{ animal.estadoSanitario || 'SANO' }}</td>
+                  <td>{{ animal.cantidadCabezas || 1 }}</td>
+                </tr>
+              }
+            </tbody>
+          </table>
+          <footer class="pagination">
+            <button type="button" [disabled]="page() === 0" (click)="setPage(page() - 1)">Anterior</button>
+            <span>Mostrando {{ animals().length }} de {{ totalElements() }}</span>
+            <button type="button" [disabled]="page() + 1 >= totalPages()" (click)="setPage(page() + 1)">Siguiente</button>
+          </footer>
+        }
+      </section>
+    }
+  }
+</main>
+
+@if (selectedAnimal(); as animal) {
+  <aside class="drawer" role="dialog" aria-modal="true" aria-label="Detalle del animal">
+    <header><h2>{{ animal.name || animal.earTag }}</h2><button type="button" (click)="closeDetail()">Cerrar</button></header>
+    <dl>
+      <dt>Crotal / lote</dt><dd>{{ animal.earTag }}</dd>
+      <dt>Explotación</dt><dd>{{ farmId() }}</dd>
+      <dt>Especie</dt><dd>{{ animal.species }}</dd>
+      <dt>Subtipo</dt><dd>{{ animal.subtipo || 'Sin clasificar' }}</dd>
+      <dt>Ubicación</dt><dd>{{ animal.ubicacion || 'Sin ubicación' }}</dd>
+      <dt>Estado</dt><dd>{{ animal.estadoSanitario || 'SANO' }}</dd>
+      <dt>Cabezas</dt><dd>{{ animal.cantidadCabezas || 1 }}</dd>
+    </dl>
+    <section class="quick-edit">
+      <label>Subtipo
+        <input [ngModel]="editSubtipo()" (ngModelChange)="editSubtipo.set($event)" placeholder="ORDEÑO">
+      </label>
+      <label>Ubicación
+        <input [ngModel]="editUbicacion()" (ngModelChange)="editUbicacion.set($event)" placeholder="NAVE_1">
+      </label>
+      <button type="button" (click)="clasificarIndividual(animal)">Guardar clasificación</button>
+    </section>
+  </aside>
+}
+
+@if (addDrawerOpen()) {
+  <aside class="add-drawer" role="dialog" aria-modal="true" aria-label="Añadir animal o lote">
+    <header>
+      <div><span class="eyebrow">ALTA GANADERA</span><h2>Añadir animal / lote</h2></div>
+      <button type="button" (click)="closeAddDrawer()">Cerrar</button>
+    </header>
+    <form [formGroup]="addForm" (ngSubmit)="saveAnimal()">
+      <label>Crotal / Identificador de lote
+        <input formControlName="crotal" placeholder="Ej. ES123456789" (input)="addForm.controls.crotal.setValue(addForm.controls.crotal.value.toUpperCase(), { emitEvent: false })">
+      </label>
+      <label>Nombre
+        <input formControlName="nombre" placeholder="Nombre opcional">
+      </label>
+      <label>Subtipo productivo
+        <select formControlName="subtipo">
+          <option value="">Sin clasificar</option>
+          @for (option of opciones().subtiposRecomendados; track option) { <option [value]="option">{{ option }}</option> }
+          @for (option of opciones().subtipos; track option) { @if (option !== 'Sin clasificar') { <option [value]="option">{{ option }}</option> } }
+        </select>
+        <input formControlName="subtipoPersonalizado" placeholder="Escribir otro subtipo...">
+      </label>
+      <label>Ubicación física
+        <select formControlName="ubicacion">
+          <option value="">Sin ubicación</option>
+          @for (option of opciones().ubicacionesRecomendadas; track option) { <option [value]="option">{{ option }}</option> }
+          @for (option of opciones().ubicaciones; track option) { @if (option !== 'Sin ubicación') { <option [value]="option">{{ option }}</option> } }
+        </select>
+        <input formControlName="ubicacionPersonalizada" placeholder="Escribir otra ubicación...">
+      </label>
+      <label>Estado sanitario
+        <select formControlName="estadoSanitario">
+          <option value="SANO">SANO</option>
+          <option value="EN_TRATAMIENTO">EN_TRATAMIENTO</option>
+          <option value="ENFERMO">ENFERMO</option>
+        </select>
+      </label>
+      <label>Número de cabezas
+        <input formControlName="cabezas" type="number" min="1" step="1">
+      </label>
+      <footer class="drawer-actions">
+        <button type="submit" [disabled]="addForm.invalid">Guardar animal</button>
+        <button type="button" [disabled]="addForm.invalid" (click)="saveAnimal(true)">Guardar y añadir otro</button>
+      </footer>
+    </form>
+  </aside>
+}
+
+@if (toast()) {
+  <div class="toast" role="status">{{ toast() }}</div>
+}

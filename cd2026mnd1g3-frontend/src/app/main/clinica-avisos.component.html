@@ -1,0 +1,121 @@
+<main class="avisos-page">
+  <header class="avisos-header">
+    <div>
+      <span class="eyebrow">VETCONTROL · AVISOS</span>
+      <h1>Tablero operativo</h1>
+    </div>
+    <a class="module-link" routerLink="/clinica">← Volver a clínica</a>
+  </header>
+
+  <section class="toolbar">
+    <label class="switch">
+      <input type="checkbox" [checked]="grouped()" (change)="grouped.set(!grouped())">
+      Agrupar por propietario
+    </label>
+    <div class="mode-switch">
+      <button type="button" [class.active]="roleMode() === 'recepcion'" (click)="roleMode.set('recepcion')">Modo Recepción</button>
+      <button type="button" [class.active]="roleMode() === 'veterinario'" (click)="roleMode.set('veterinario')">Modo Veterinario</button>
+    </div>
+  </section>
+
+  @if (loading()) {
+    <section class="skeleton"><div></div><div></div><div></div></section>
+  } @else if (error()) {
+    <section class="message error" role="alert">
+      <strong>{{ error() }}</strong>
+      <button type="button" (click)="retry()">Reintentar</button>
+    </section>
+  } @else if (avisos().length === 0) {
+    <section class="message empty">
+      <strong>No hay avisos pendientes.</strong>
+      <a routerLink="/clinica/pacientes/alta">Registrar una mascota</a>
+    </section>
+  } @else if (grouped()) {
+    @for (group of groupedAvisos(); track group.propietarioId) {
+      <section class="owner-group">
+        <header>
+          <div>
+            <h2>{{ group.nombrePropietario }}</h2>
+            <span>+{{ group.avisos.length }} avisos de la misma familia</span>
+          </div>
+          <div class="contact">
+            @if (group.telefonoPropietario) { <a [href]="'tel:' + group.telefonoPropietario">{{ group.telefonoPropietario }}</a> }
+            @if (group.emailPropietario) { <a [href]="'mailto:' + group.emailPropietario">{{ group.emailPropietario }}</a> }
+          </div>
+        </header>
+        @for (aviso of group.avisos; track aviso.id) {
+          <article class="notice">
+            <ng-container [ngTemplateOutlet]="noticeTemplate" [ngTemplateOutletContext]="{ aviso }"></ng-container>
+          </article>
+        }
+      </section>
+    }
+  } @else {
+    @for (aviso of avisos(); track aviso.id) {
+      <article class="notice standalone">
+        <ng-container [ngTemplateOutlet]="noticeTemplate" [ngTemplateOutletContext]="{ aviso }"></ng-container>
+      </article>
+    }
+  }
+
+  <footer class="pagination">
+    <button type="button" [disabled]="page() === 0" (click)="setPage(page() - 1)">Anterior</button>
+    <span>Mostrando {{ avisos().length }} de {{ totalElements() }}</span>
+    <button type="button" [disabled]="page() + 1 >= totalPages()" (click)="setPage(page() + 1)">Siguiente</button>
+  </footer>
+</main>
+
+<ng-template #noticeTemplate let-aviso="aviso">
+  <div class="notice-main">
+    <span class="category">{{ aviso.categoria }}</span>
+    <h3>{{ aviso.nombrePaciente }} · {{ aviso.titulo }}</h3>
+    <p>{{ aviso.fechaObjetivo }} · {{ aviso.estado }} · {{ aviso.intentos }} intentos</p>
+    @if (roleMode() === 'veterinario') {
+      <p class="clinical">{{ aviso.detalleClinico || 'Sin detalle clínico registrado' }}</p>
+      @if (aviso.progreso) { <strong>{{ aviso.progreso }}</strong> }
+    }
+  </div>
+  <div class="notice-actions">
+    <button type="button" (click)="copyText(aviso)">Copiar texto listo</button>
+    <button type="button" (click)="call(aviso)">Llamar</button>
+    <button type="button" (click)="email(aviso)">Email</button>
+    <button type="button" (click)="marcarIntentado(aviso)">Intentado</button>
+    <button type="button" (click)="contactar(aviso)">Contactado</button>
+    <button type="button" (click)="cita(aviso)">Dar cita</button>
+    <button type="button" (click)="posponer(aviso, 3)">+3 días</button>
+    <button type="button" (click)="posponer(aviso, 7)">+7 días</button>
+    <button type="button" (click)="posponer(aviso)">Fecha concreta</button>
+    <button type="button" (click)="abrirDescarte(aviso)">Descartar</button>
+    <a [routerLink]="['/clinica']" [queryParams]="{ paciente: aviso.pacienteId }">Abrir ficha</a>
+  </div>
+</ng-template>
+
+@if (postponerAvisoId(); as id) {
+  <div class="dialog">
+    <section role="dialog" aria-modal="true" aria-label="Posponer aviso">
+      <h2>Posponer aviso</h2>
+      <input type="date" [ngModel]="postponerFecha()" (ngModelChange)="postponerFecha.set($event)">
+      <div><button type="button" (click)="postponerAvisoId.set(null)">Cancelar</button><button type="button" (click)="confirmarPosponer()">Guardar</button></div>
+    </section>
+  </div>
+}
+
+@if (discardAvisoId(); as id) {
+  <div class="dialog">
+    <section role="dialog" aria-modal="true" aria-label="Descartar aviso">
+      <h2>Motivo de descarte</h2>
+      <select [ngModel]="discardReason()" (ngModelChange)="discardReason.set($event)">
+        <option value="YA_REALIZADO">Ya realizado</option>
+        <option value="CAMBIO_CRITERIO">Cambio de criterio</option>
+        <option value="PROPIETARIO_RECHAZO">Propietario rechaza</option>
+        <option value="FALLECIMIENTO_BAJA">Fallecimiento / baja</option>
+        <option value="OTRO">Otro</option>
+      </select>
+      @if (discardReason() === 'FALLECIMIENTO_BAJA') {
+        <p class="warning">Esta acción da de baja al paciente y cancela sus avisos futuros.</p>
+      }
+      <textarea [ngModel]="discardNote()" (ngModelChange)="discardNote.set($event)" rows="3" placeholder="Nota opcional"></textarea>
+      <div><button type="button" (click)="discardAvisoId.set(null)">Cancelar</button><button type="button" (click)="confirmarDescarte()">Descartar</button></div>
+    </section>
+  </div>
+}

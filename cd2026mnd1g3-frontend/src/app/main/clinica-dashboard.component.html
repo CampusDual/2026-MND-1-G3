@@ -16,6 +16,8 @@
   <p class="error" *ngIf="error" role="alert">{{ error }}</p>
 
   <nav class="tabs" aria-label="Secciones de clínica">
+    <a class="tab-link" routerLink="/clinica/pacientes/alta">Alta de mascota</a>
+    <a class="tab-link" routerLink="/clinica/avisos">Avisos clínicos</a>
     <button type="button" [class.active]="activeTab === 'consultas'" (click)="activeTab = 'consultas'">Consultas y recetas</button>
     <button type="button" [class.active]="activeTab === 'inventario'" (click)="activeTab = 'inventario'">Inventario y trazabilidad</button>
   </nav>
@@ -34,10 +36,10 @@
           <label>Fecha
             <input type="date" [(ngModel)]="consultation.fecha" name="fecha" required>
           </label>
-          <label>Animal
-            <select [(ngModel)]="consultation.animalId" name="animalId" required>
-              <option [ngValue]="0">Selecciona un animal</option>
-              <option *ngFor="let animal of animals" [ngValue]="animal.id">{{ animal.name || animal.earTag }} · {{ animal.earTag }}</option>
+          <label>Paciente
+            <select [(ngModel)]="consultation.pacienteId" name="pacienteId" required>
+              <option [ngValue]="0">Selecciona una mascota</option>
+              <option *ngFor="let paciente of pacientes" [ngValue]="paciente.id">{{ paciente.nombre }} — {{ paciente.especie }}/{{ paciente.raza || 'Sin especificar' }} (Propietario: {{ paciente.propietario.nombre }} {{ paciente.propietario.apellidos }})</option>
             </select>
           </label>
           <label>Medicamento
@@ -74,7 +76,7 @@
             <tbody>
               <tr *ngFor="let consulta of consultas">
                 <td>{{ consulta.fecha }}</td>
-                <td>{{ animalName(consulta.animalId) }}</td>
+                <td>{{ pacienteLabel(consulta.pacienteId) }}</td>
                 <td>{{ loteNumber(consulta.loteStockId) }}</td>
                 <td>{{ consulta.cantidad }}</td>
                 <td>{{ consulta.motivo || '—' }}</td>
@@ -137,7 +139,7 @@
               <td><span class="status">{{ movimiento.tipoMovimiento }}</span></td>
               <td>{{ loteNumber(movimiento.loteStockId) }}</td>
               <td [class.out]="movimiento.cantidad < 0">{{ movimiento.cantidad }}</td>
-              <td>{{ animalName(movimiento.animalId) }} · {{ farmName(movimiento.explotacionId) }}</td>
+              <td>{{ movimiento.animalId ? 'Referencia clínica ' + movimiento.animalId : 'Sin paciente' }} · {{ movimiento.explotacionId ? 'Explotación ' + movimiento.explotacionId : 'Sin explotación' }}</td>
             </tr>
           </tbody>
         </table>

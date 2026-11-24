@@ -31,6 +31,14 @@ public class AnimalEntity {
     private LocalDate fechaFinRetirada;
     @Column(length = 1000)
     private String notas;
+    @Column(length = 40)
+    private String subtipo;
+    @Column(length = 80)
+    private String ubicacion;
+    @Column(name = "cantidad_cabezas", nullable = false)
+    private Integer cantidadCabezas = 1;
+    @Column(name = "clinica_id", nullable = false)
+    private Long clinicaId = 1L;
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
     @JoinColumn(name = "farm_id", nullable = false)
     private FarmEntity farm;
@@ -55,4 +63,12 @@ public class AnimalEntity {
     public void setFechaFinRetirada(LocalDate fechaFinRetirada) { this.fechaFinRetirada = fechaFinRetirada; }
     public String getNotas() { return notas; }
     public void setNotas(String notas) { this.notas = notas; }
+    public String getSubtipo() { return subtipo; }
+    public void setSubtipo(String subtipo) { this.subtipo = subtipo; }
+    public String getUbicacion() { return ubicacion; }
+    public void setUbicacion(String ubicacion) { this.ubicacion = ubicacion; }
+    public Integer getCantidadCabezas() { return cantidadCabezas; }
+    public void setCantidadCabezas(Integer cantidadCabezas) { this.cantidadCabezas = cantidadCabezas; }
+    public Long getClinicaId() { return clinicaId; }
+    public void setClinicaId(Long clinicaId) { this.clinicaId = clinicaId; }
 }

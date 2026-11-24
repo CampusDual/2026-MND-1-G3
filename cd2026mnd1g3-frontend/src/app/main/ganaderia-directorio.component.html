@@ -1,0 +1,58 @@
+<main class="directory-page">
+  <header class="directory-header">
+    <div>
+      <span class="eyebrow">VETCONTROL · GRANJAS</span>
+      <h1>Directorio de Explotaciones</h1>
+    </div>
+    <a routerLink="/ganaderia">← Centro ganadero</a>
+  </header>
+
+  <label class="search">Buscar por nombre o REGA
+    <input type="search" [formControl]="searchControl" placeholder="Nombre o código REGA">
+  </label>
+
+  @if (loading()) {
+    <section class="skeleton" aria-label="Cargando explotaciones">
+      <div></div><div></div><div></div>
+    </section>
+  } @else if (error()) {
+    <section class="message error" role="alert">
+      <strong>{{ error() }}</strong>
+      <button type="button" (click)="retry()">Reintentar</button>
+    </section>
+  } @else if (farms().length === 0) {
+    <section class="message empty">
+      <strong>No hay explotaciones para esta búsqueda.</strong>
+      <button type="button" (click)="searchControl.setValue('')">Limpiar búsqueda</button>
+    </section>
+  } @else {
+    <section class="farm-grid">
+      @for (farm of farms(); track farm.farmId) {
+        <a class="farm-card" [routerLink]="['/ganaderia/explotaciones', farm.farmId]">
+          <header>
+            <div>
+              <h2>{{ farm.name }}</h2>
+              <span>{{ farm.regaCode }} · {{ farm.mainSpecies }}</span>
+            </div>
+            <strong>{{ farm.totalHeads }} cabezas</strong>
+          </header>
+          <div class="subtype-bar">
+            @for (subtype of farm.subtypes; track subtype.groupId) {
+              <span [style.width.%]="subtype.percentage"
+                [attr.title]="subtype.label + ': ' + subtype.heads"></span>
+            }
+          </div>
+          <footer>
+            <span>{{ farm.activeAlerts }} alertas activas</span>
+            <span>{{ farm.pendingActions }} actuaciones pendientes</span>
+          </footer>
+        </a>
+      }
+    </section>
+    <footer class="pagination">
+      <button type="button" [disabled]="page() === 0" (click)="setPage(page() - 1)">Anterior</button>
+      <span>Mostrando {{ farms().length }} de {{ totalElements() }}</span>
+      <button type="button" [disabled]="page() + 1 >= totalPages()" (click)="setPage(page() + 1)">Siguiente</button>
+    </footer>
+  }
+</main>

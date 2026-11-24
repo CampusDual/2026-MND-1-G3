@@ -4,9 +4,10 @@ import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
 import { Subscription } from 'rxjs';
 import { AlertService } from '../core/alert.service';
+import { ClinicaPacienteService } from '../core/clinica-paciente.service';
+import { PacienteClinica } from '../core/clinica-paciente.models';
 import {
   AlertaSistema,
-  Animal,
   Farm,
   LoteStock,
   LivestockService,
@@ -16,7 +17,7 @@ import {
 
 interface ConsultaReceta {
   fecha: string;
-  animalId: number;
+  pacienteId: number;
   loteStockId: number;
   cantidad: number;
   motivo: string;
@@ -33,11 +34,13 @@ interface ConsultaReceta {
 export class ClinicaDashboardComponent implements OnInit, OnDestroy {
   private readonly service = inject(LivestockService);
   private readonly alertService = inject(AlertService);
+  private readonly pacienteService = inject(ClinicaPacienteService);
   private alertSubscription?: Subscription;
+  private pacienteSubscription?: Subscription;
 
   activeTab: 'consultas' | 'inventario' = 'consultas';
   farms: Farm[] = [];
-  animals: Animal[] = [];
+  pacientes: PacienteClinica[] = [];
   medicamentos: Medicamento[] = [];
   lotes: LoteStock[] = [];
   movimientos: MovimientoInventario[] = [];
@@ -53,11 +56,14 @@ export class ClinicaDashboardComponent implements OnInit, OnDestroy {
   ngOnInit(): void {
     this.alertService.connect();
     this.alertSubscription = this.alertService.alerts.subscribe(alerts => this.alerts = alerts);
+    this.pacienteSubscription = this.pacienteService.pacientesActualizados
+      .subscribe(() => this.loadPacientes());
     this.load();
   }
 
   ngOnDestroy(): void {
     this.alertSubscription?.unsubscribe();
+    this.pacienteSubscription?.unsubscribe();
   }
 
   get unreadAlerts(): number {
@@ -86,10 +92,11 @@ export class ClinicaDashboardComponent implements OnInit, OnDestroy {
     return this.lotes.find(lote => lote.id === loteId)?.numeroLote ?? String(loteId);
   }
 
-  animalName(animalId: number | undefined): string {
-    if (!animalId) return 'Sin animal';
-    const animal = this.animals.find(item => item.id === animalId);
-    return animal ? `${animal.name || animal.earTag} · ${animal.earTag}` : String(animalId);
+  pacienteLabel(pacienteId: number | undefined): string {
+    if (!pacienteId) return 'Sin paciente';
+    const paciente = this.pacientes.find(item => item.id === pacienteId);
+    if (!paciente) return String(pacienteId);
+    return `${paciente.nombre} — ${paciente.especie}/${paciente.raza || 'Sin especificar'} (Propietario: ${paciente.propietario.nombre} ${paciente.propietario.apellidos})`;
   }
 
   farmName(explotacionId: number | undefined): string {
@@ -102,25 +109,42 @@ export class ClinicaDashboardComponent implements OnInit, OnDestroy {
   }
 
   registerConsultation(): void {
-    if (!this.consultation.animalId || !this.consultation.loteStockId
+    if (!this.consultation.pacienteId || !this.consultation.loteStockId
       || !this.consultation.cantidad || this.consultation.cantidad <= 0) {
-      this.error = 'Completa animal, lote y cantidad para registrar la consulta.';
+      this.error = 'Completa paciente, lote y cantidad para registrar la consulta.';
       return;
     }
-    const animal = this.animals.find(item => item.id === this.consultation.animalId);
-    this.service.registrarMovimiento({
-      loteStockId: this.consultation.loteStockId,
-      cantidad: this.consultation.cantidad,
-      tipo: 'SALIDA_CLINICA',
-      animalId: this.consultation.animalId,
-      explotacionId: animal?.farmId
+    const fechaConsulta = `${this.consultation.fecha}T${new Date().toISOString().slice(11, 19)}`;
+    this.pacienteService.crearConsulta({
+      pacienteId: this.consultation.pacienteId,
+      fechaConsulta,
+      motivo: this.consultation.motivo
     }).subscribe({
-      next: () => {
-        this.consultas = [...this.consultas, { ...this.consultation }];
-        this.consultation = this.emptyConsultation();
-        this.load();
+      next: consulta => {
+        this.consultas = [...this.consultas, {
+          fecha: consulta.fechaConsulta.slice(0, 10),
+          pacienteId: consulta.pacienteId,
+          loteStockId: this.consultation.loteStockId,
+          cantidad: this.consultation.cantidad,
+          motivo: consulta.motivo || ''
+        }];
+        if (this.selectedMedicationId !== null && this.consultation.loteStockId > 0) {
+          this.service.registrarMovimiento({
+            loteStockId: this.consultation.loteStockId,
+            cantidad: this.consultation.cantidad,
+            tipo: 'SALIDA_CLINICA',
+            animalId: undefined,
+            explotacionId: undefined
+          }).subscribe({
+            next: () => this.load(),
+            error: () => this.error = 'La consulta se creó, pero no se pudo registrar la salida clínica.'
+          });
+        } else {
+          this.consultation = this.emptyConsultation();
+          this.load();
+        }
       },
-      error: () => this.error = 'No se pudo registrar la salida clínica.'
+      error: () => this.error = 'No se pudo registrar la consulta clínica.'
     });
   }
 
@@ -153,7 +177,17 @@ export class ClinicaDashboardComponent implements OnInit, OnDestroy {
   private load(): void {
     this.loading = true;
     this.service.farms().subscribe(data => this.farms = data);
-    this.service.animals().subscribe(data => this.animals = data);
+    this.loadPacientes();
+    this.pacienteService.findConsultas().subscribe({
+      next: consultas => this.consultas = consultas.map(consulta => ({
+        fecha: consulta.fechaConsulta.slice(0, 10),
+        pacienteId: consulta.pacienteId,
+        loteStockId: 0,
+        cantidad: 0,
+        motivo: consulta.motivo || ''
+      })),
+      error: () => this.error = 'No se pudieron cargar las consultas clínicas.'
+    });
     this.service.medicamentos().subscribe(data => this.medicamentos = data);
     this.service.lotes().subscribe(data => this.lotes = data);
     this.service.alerts().subscribe({
@@ -169,10 +203,17 @@ export class ClinicaDashboardComponent implements OnInit, OnDestroy {
     });
   }
 
+  private loadPacientes(): void {
+    this.pacienteService.findPacientes(100).subscribe({
+      next: page => this.pacientes = page.content,
+      error: () => this.error = 'No se pudieron cargar los pacientes de clínica.'
+    });
+  }
+
   private emptyConsultation(): ConsultaReceta {
     return {
       fecha: new Date().toISOString().slice(0, 10),
-      animalId: 0,
+      pacienteId: 0,
       loteStockId: 0,
       cantidad: 0,
       motivo: ''

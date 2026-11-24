@@ -17,6 +17,10 @@ public class AnimalDto {
     private EstadoSanitario estadoSanitario;
     private LocalDate fechaFinRetirada;
     private String notas;
+    private String subtipo;
+    private String ubicacion;
+    private Integer cantidadCabezas;
+    private Long clinicaId;
 
     public AnimalDto() {
     }
@@ -46,4 +50,12 @@ public class AnimalDto {
     public void setFechaFinRetirada(LocalDate fechaFinRetirada) { this.fechaFinRetirada = fechaFinRetirada; }
     public String getNotas() { return notas; }
     public void setNotas(String notas) { this.notas = notas; }
+    public String getSubtipo() { return subtipo; }
+    public void setSubtipo(String subtipo) { this.subtipo = subtipo; }
+    public String getUbicacion() { return ubicacion; }
+    public void setUbicacion(String ubicacion) { this.ubicacion = ubicacion; }
+    public Integer getCantidadCabezas() { return cantidadCabezas; }
+    public void setCantidadCabezas(Integer cantidadCabezas) { this.cantidadCabezas = cantidadCabezas; }
+    public Long getClinicaId() { return clinicaId; }
+    public void setClinicaId(Long clinicaId) { this.clinicaId = clinicaId; }
 }
