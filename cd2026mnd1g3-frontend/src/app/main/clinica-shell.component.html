@@ -1,0 +1,14 @@
+<header class="clinic-nav">
+  <a class="brand" routerLink="/clinica">VetControl <span>· Clínica</span></a>
+  <nav aria-label="Navegación de clínica">
+    <a routerLink="/clinica" routerLinkActive="active" [routerLinkActiveOptions]="{ exact: true }">Inicio</a>
+    <a routerLink="/clinica/pacientes" routerLinkActive="active">Pacientes</a>
+    <a routerLink="/clinica/avisos" routerLinkActive="active">Avisos</a>
+    <a routerLink="/clinica/inventario" routerLinkActive="active">Inventario</a>
+  </nav>
+  <div class="actions">
+    <a class="new-patient" routerLink="/clinica/pacientes/nueva">+ Nueva mascota</a>
+    <a class="module-link" routerLink="/portal">Cambiar de módulo</a>
+  </div>
+</header>
+<router-outlet />

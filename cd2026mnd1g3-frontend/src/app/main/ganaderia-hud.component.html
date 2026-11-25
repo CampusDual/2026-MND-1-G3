@@ -13,16 +13,44 @@
     </nav>
 
     <div class="hud-tools">
+      <span class="network" [class.offline]="!(connectionState | async)">
+        {{ (connectionState | async) ? 'Alertas conectadas' : 'Alertas desconectadas' }}
+      </span>
       <button type="button" class="network" [class.offline]="!online()">
         {{ online() ? 'En línea' : 'Sin conexión · ' + offline.pending().length + ' pendientes' }}
+      </button>
+      <button type="button" class="bell-button" [attr.aria-expanded]="alertsPanelOpen()" (click)="toggleAlertsPanel()">
+        🔔 @if (unreadAlerts() > 0) { <strong>{{ unreadAlerts() }}</strong> }
       </button>
       <button type="button" [class.active]="state.mode() === 'campo'" (click)="toggleMode()">
         Alto contraste (Sol)
       </button>
-      <a class="exit" routerLink="/ganaderia/centro-control">Centro de Control</a>
       <button type="button" [class.active]="scanner.active()" (click)="scanner.toggle()">Escaneo rápido</button>
       <a class="exit" routerLink="/portal">← Cambiar de módulo</a>
     </div>
+
+    @if (alertsPanelOpen()) {
+      <section class="alerts-drawer" aria-label="Alertas por explotación">
+        <header><h2>Alertas por explotación</h2><button type="button" (click)="alertsPanelOpen.set(false)">Cerrar</button></header>
+        @if (alertGroups().length === 0) {
+          <p>No hay alertas asociadas a explotaciones.</p>
+        } @else {
+          @for (group of alertGroups(); track group.farmId) {
+            <section class="alert-farm-group">
+              <h3>{{ group.farmName }}</h3>
+              @for (alert of group.alerts; track alert.id) {
+                <a [routerLink]="['/ganaderia/explotaciones', group.farmId]"
+                  [queryParams]="{ tab: 'alertas' }" (click)="alertsPanelOpen.set(false)">
+                  <strong>{{ alert.titulo }}</strong>
+                  <span>{{ alert.leida ? 'Leída' : 'Sin leer' }} · {{ alert.fechaProgramada | date:'dd/MM/yyyy HH:mm' }}</span>
+                </a>
+              }
+            </section>
+          }
+        }
+        <footer><button type="button" (click)="runDailyReview()">Forzar revisión diaria</button></footer>
+      </section>
+    }
 
     @if (scanner.active()) {
       <div class="scanner-bar">
@@ -49,40 +77,6 @@
   <section class="hud-content">
     <router-outlet></router-outlet>
   </section>
-
-  @if (state.selectedIds().length) {
-    <footer class="bulk-hud">
-      <strong>{{ state.selectedIds().length }} seleccionados</strong>
-      <label>Subtipo
-        <input [ngModel]="bulkSubtype()" (ngModelChange)="bulkSubtype.set($event)" placeholder="ORDEÑO">
-      </label>
-      <button type="button" (click)="applyBulkSubtype()">Clasificar</button>
-      <label>Ubicación
-        <input [ngModel]="bulkLocation()" (ngModelChange)="bulkLocation.set($event)" placeholder="NAVE_1">
-      </label>
-      <button type="button" (click)="applyBulkLocation()">Reubicar</button>
-      <label>Estado
-        <select [ngModel]="bulkState()" (ngModelChange)="bulkState.set($event)">
-          <option value="SANO">SANO</option>
-          <option value="EN_TRATAMIENTO">EN_TRATAMIENTO</option>
-          <option value="ENFERMO">ENFERMO</option>
-        </select>
-      </label>
-      <button type="button" (click)="applyBulkState()">Cambiar estado</button>
-      <label>Protocolo
-        <select [ngModel]="bulkProtocolType()" (ngModelChange)="bulkProtocolType.set($event)">
-          <option value="VACUNACION">Vacunación</option>
-          <option value="TRATAMIENTO_MEDICO">Tratamiento</option>
-          <option value="REVISION_PERIODICA">Revisión</option>
-        </select>
-      </label>
-      <label>Título
-        <input [ngModel]="bulkProtocolTitle()" (ngModelChange)="bulkProtocolTitle.set($event)" placeholder="Vacunación anual">
-      </label>
-      <button type="button" (click)="applyBulkProtocol()">Aplicar protocolo</button>
-      <button type="button" (click)="state.selectedIds.set([])">Deseleccionar</button>
-    </footer>
-  }
 
   @if (toast()) {
     <div class="hud-toast" role="status">{{ toast() }}</div>

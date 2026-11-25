@@ -21,6 +21,7 @@ export class AlertService implements OnDestroy {
       this.client.subscribe('/topic/ganaderia/1', (message: IMessage) => this.receive(message));
     };
     this.client.onDisconnect = () => this.connected.next(false);
+    this.client.onWebSocketClose = () => this.connected.next(false);
     this.client.onStompError = () => this.connected.next(false);
   }
 
@@ -45,7 +46,7 @@ export class AlertService implements OnDestroy {
 
   private merge(incoming: AlertaSistema[]): void {
     const map = new Map<number, AlertaSistema>();
-    for (const alert of [...incoming, ...this.alerts.value]) {
+    for (const alert of [...this.alerts.value, ...incoming]) {
       map.set(alert.id, alert);
     }
     this.alerts.next([...map.values()].sort((left, right) =>

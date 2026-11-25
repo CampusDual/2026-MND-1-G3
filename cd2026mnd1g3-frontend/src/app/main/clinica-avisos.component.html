@@ -4,7 +4,6 @@
       <span class="eyebrow">VETCONTROL · AVISOS</span>
       <h1>Tablero operativo</h1>
     </div>
-    <a class="module-link" routerLink="/clinica">← Volver a clínica</a>
   </header>
 
   <section class="toolbar">
@@ -12,23 +11,26 @@
       <input type="checkbox" [checked]="grouped()" (change)="grouped.set(!grouped())">
       Agrupar por propietario
     </label>
-    <div class="mode-switch">
-      <button type="button" [class.active]="roleMode() === 'recepcion'" (click)="roleMode.set('recepcion')">Modo Recepción</button>
-      <button type="button" [class.active]="roleMode() === 'veterinario'" (click)="roleMode.set('veterinario')">Modo Veterinario</button>
-    </div>
   </section>
+
+  @if (actionError()) {
+    <section class="message error" role="alert">
+      <strong>{{ actionError() }}</strong>
+      <button type="button" (click)="actionError.set('')">Cerrar</button>
+    </section>
+  }
 
   @if (loading()) {
     <section class="skeleton"><div></div><div></div><div></div></section>
-  } @else if (error()) {
+  } @else if (loadError()) {
     <section class="message error" role="alert">
-      <strong>{{ error() }}</strong>
+      <strong>{{ loadError() }}</strong>
       <button type="button" (click)="retry()">Reintentar</button>
     </section>
   } @else if (avisos().length === 0) {
     <section class="message empty">
-      <strong>No hay avisos pendientes.</strong>
-      <a routerLink="/clinica/pacientes/alta">Registrar una mascota</a>
+      <strong>No hay avisos pendientes. Los avisos se programan desde la ficha de cada paciente.</strong>
+      <a routerLink="/clinica/pacientes">Ir a Pacientes</a>
     </section>
   } @else if (grouped()) {
     @for (group of groupedAvisos(); track group.propietarioId) {
@@ -70,7 +72,11 @@
     <span class="category">{{ aviso.categoria }}</span>
     <h3>{{ aviso.nombrePaciente }} · {{ aviso.titulo }}</h3>
     <p>{{ aviso.fechaObjetivo }} · {{ aviso.estado }} · {{ aviso.intentos }} intentos</p>
-    @if (roleMode() === 'veterinario') {
+    <button class="detail-toggle" type="button" [attr.aria-expanded]="clinicalDetailsExpanded(aviso.id)"
+      (click)="toggleClinicalDetails(aviso.id)">
+      {{ clinicalDetailsExpanded(aviso.id) ? 'Ocultar detalle clínico' : 'Ver detalle clínico' }}
+    </button>
+    @if (clinicalDetailsExpanded(aviso.id)) {
       <p class="clinical">{{ aviso.detalleClinico || 'Sin detalle clínico registrado' }}</p>
       @if (aviso.progreso) { <strong>{{ aviso.progreso }}</strong> }
     }
@@ -86,7 +92,7 @@
     <button type="button" (click)="posponer(aviso, 7)">+7 días</button>
     <button type="button" (click)="posponer(aviso)">Fecha concreta</button>
     <button type="button" (click)="abrirDescarte(aviso)">Descartar</button>
-    <a [routerLink]="['/clinica']" [queryParams]="{ paciente: aviso.pacienteId }">Abrir ficha</a>
+    <a [routerLink]="['/clinica/pacientes', aviso.pacienteId]">Abrir ficha</a>
   </div>
 </ng-template>
 
@@ -114,7 +120,7 @@
       @if (discardReason() === 'FALLECIMIENTO_BAJA') {
         <p class="warning">Esta acción da de baja al paciente y cancela sus avisos futuros.</p>
       }
-      <textarea [ngModel]="discardNote()" (ngModelChange)="discardNote.set($event)" rows="3" placeholder="Nota opcional"></textarea>
+      <textarea [ngModel]="discardNote()" (ngModelChange)="discardNote.set($event)" rows="3" maxlength="500" placeholder="Nota opcional"></textarea>
       <div><button type="button" (click)="discardAvisoId.set(null)">Cancelar</button><button type="button" (click)="confirmarDescarte()">Descartar</button></div>
     </section>
   </div>

@@ -44,3 +44,11 @@ export interface AvisoPage {
   totalElements: number;
   totalPages: number;
 }
+
+export interface AvisoClinicoRequest {
+  pacienteId: number;
+  categoria: CategoriaAvisoClinico;
+  titulo: string;
+  detalleClinico?: string;
+  fechaObjetivo: string;
+}

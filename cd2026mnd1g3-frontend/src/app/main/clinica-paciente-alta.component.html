@@ -5,7 +5,6 @@
       <h1>Alta de mascota</h1>
       <p>Registra el propietario y la ficha clínica en un único guardado.</p>
     </div>
-    <a class="module-link" routerLink="/clinica">← Volver a la clínica</a>
   </header>
 
   @if (loading()) {
@@ -15,13 +14,16 @@
   } @else if (error()) {
     <section class="message error" role="alert">
       <strong>{{ error() }}</strong>
-      <button type="button" (click)="retry()">Reintentar</button>
+      <button type="button" (click)="closeError()">Cerrar</button>
     </section>
   } @else if (success()) {
     <section class="message success" role="status">
       <strong>{{ success() }}</strong>
       <div>
-        <a routerLink="/clinica">Ir al directorio</a>
+        <a routerLink="/clinica/pacientes">Ir a Pacientes</a>
+        @if (newPatientId(); as patientId) {
+          <a [routerLink]="['/clinica/pacientes', patientId]">Abrir ficha</a>
+        }
         <button type="button" (click)="success.set('')">Registrar otra</button>
       </div>
     </section>
@@ -76,10 +78,18 @@
         }
       } @else {
         <fieldset [formGroup]="ownerForm" class="form-grid">
-          <label>Nombre<input formControlName="nombre" autocomplete="given-name"></label>
-          <label>Apellidos<input formControlName="apellidos" autocomplete="family-name"></label>
-          <label>Teléfono<input formControlName="telefono" placeholder="+34600123456"></label>
-          <label>Email<input formControlName="email" type="email"></label>
+          <label>Nombre<input formControlName="nombre" autocomplete="given-name">
+            @if (fieldError(ownerForm.controls.nombre)) { <small class="field-error">{{ fieldError(ownerForm.controls.nombre) }}</small> }
+          </label>
+          <label>Apellidos<input formControlName="apellidos" autocomplete="family-name">
+            @if (fieldError(ownerForm.controls.apellidos)) { <small class="field-error">{{ fieldError(ownerForm.controls.apellidos) }}</small> }
+          </label>
+          <label>Teléfono<input formControlName="telefono" placeholder="+34600123456">
+            @if (fieldError(ownerForm.controls.telefono)) { <small class="field-error">{{ fieldError(ownerForm.controls.telefono) }}</small> }
+          </label>
+          <label>Email<input formControlName="email" type="email">
+            @if (fieldError(ownerForm.controls.email)) { <small class="field-error">{{ fieldError(ownerForm.controls.email) }}</small> }
+          </label>
           <label>DNI/NIF<input formControlName="dniNif"></label>
         </fieldset>
         @if (duplicateOwner(); as duplicate) {
@@ -88,6 +98,9 @@
             <button type="button" (click)="existingOwnerMode.set(true); selectOwner(duplicate)">Usar este cliente</button>
           </div>
         }
+      }
+      @if (attemptedSave() && existingOwnerMode() && !selectedOwner()) {
+        <small class="field-error">Selecciona un propietario existente o crea uno nuevo.</small>
       }
     </section>
 
@@ -99,6 +112,7 @@
       <div class="form-grid">
         <label>Nombre
           <input formControlName="nombre" placeholder="Nombre de la mascota">
+          @if (fieldError(patientForm.controls.nombre)) { <small class="field-error">{{ fieldError(patientForm.controls.nombre) }}</small> }
         </label>
         <fieldset>
           <legend>Especie</legend>
@@ -174,18 +188,9 @@
       </fieldset>
     </section>
 
-    <section class="block optional">
-      <div class="block-heading"><span>3</span><h2>Primer aviso o tratamiento</h2></div>
-      <label class="toggle-line">
-        <input type="checkbox" disabled>
-        Programar primer aviso o tratamiento — Opcional
-      </label>
-      <p>El alta se guardará limpia si se deja desactivado.</p>
-    </section>
-
     <footer class="actions">
-      <button class="primary" type="submit" [disabled]="!canSave()">Guardar mascota</button>
-      <button type="button" [disabled]="!canSave()" (click)="save(true)">Guardar y añadir otra mascota de este dueño</button>
+      <button class="primary" type="submit" [disabled]="loading()">Guardar mascota</button>
+      <button type="button" [disabled]="loading()" (click)="save(true)">Guardar y añadir otra mascota de este dueño</button>
     </footer>
   </form>
 </main>

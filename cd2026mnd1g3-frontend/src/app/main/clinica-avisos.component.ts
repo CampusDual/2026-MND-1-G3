@@ -4,6 +4,7 @@ import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
 import { AvisoClinicoService } from '../core/aviso-clinico.service';
+import { httpErrorMessage } from '../core/http-error-message';
 import {
   AvisoClinico,
   EstadoAvisoClinico,
@@ -32,14 +33,15 @@ export class ClinicaAvisosComponent {
   private readonly destroyRef = inject(DestroyRef);
 
   readonly loading = signal(false);
-  readonly error = signal('');
+  readonly loadError = signal('');
+  readonly actionError = signal('');
   readonly avisos = signal<AvisoClinico[]>([]);
   readonly page = signal(0);
   readonly size = signal(20);
   readonly totalElements = signal(0);
   readonly totalPages = signal(0);
   readonly grouped = signal(true);
-  readonly roleMode = signal<'recepcion' | 'veterinario'>('recepcion');
+  readonly expandedClinicalDetails = signal<Set<number>>(new Set<number>());
   readonly discardAvisoId = signal<number | null>(null);
   readonly discardReason = signal<MotivoDescarteAviso>('OTRO');
   readonly discardNote = signal('');
@@ -74,7 +76,7 @@ export class ClinicaAvisosComponent {
 
   load(): void {
     this.loading.set(true);
-    this.error.set('');
+    this.loadError.set('');
     this.service.find(this.page(), this.size()).pipe(
       takeUntilDestroyed(this.destroyRef)
     ).subscribe({
@@ -84,9 +86,9 @@ export class ClinicaAvisosComponent {
         this.totalPages.set(page.totalPages);
         this.loading.set(false);
       },
-      error: () => {
+      error: error => {
         this.loading.set(false);
-        this.error.set('No se pudieron cargar los avisos clínicos.');
+        this.loadError.set(httpErrorMessage(error, 'No se pudieron cargar los avisos clínicos.'));
       }
     });
   }
@@ -101,12 +103,25 @@ export class ClinicaAvisosComponent {
     this.load();
   }
 
+  toggleClinicalDetails(avisoId: number): void {
+    this.expandedClinicalDetails.update(current => {
+      const updated = new Set(current);
+      if (updated.has(avisoId)) updated.delete(avisoId);
+      else updated.add(avisoId);
+      return updated;
+    });
+  }
+
+  clinicalDetailsExpanded(avisoId: number): boolean {
+    return this.expandedClinicalDetails().has(avisoId);
+  }
+
   marcarIntentado(aviso: AvisoClinico): void {
     this.service.marcarIntentado(aviso.id).pipe(
       takeUntilDestroyed(this.destroyRef)
     ).subscribe({
       next: updated => this.replace(updated),
-      error: () => this.error.set('No se pudo registrar el intento.')
+      error: error => this.actionError.set(httpErrorMessage(error, 'No se pudo registrar el intento.'))
     });
   }
 
@@ -127,7 +142,7 @@ export class ClinicaAvisosComponent {
         takeUntilDestroyed(this.destroyRef)
       ).subscribe({
         next: updated => this.replace(updated),
-        error: () => this.error.set('No se pudo posponer el aviso.')
+        error: error => this.actionError.set(httpErrorMessage(error, 'No se pudo posponer el aviso.'))
       });
       return;
     }
@@ -145,7 +160,7 @@ export class ClinicaAvisosComponent {
         this.postponerAvisoId.set(null);
         this.postponerFecha.set('');
       },
-      error: () => this.error.set('No se pudo posponer el aviso.')
+      error: error => this.actionError.set(httpErrorMessage(error, 'No se pudo posponer el aviso.'))
     });
   }
 
@@ -164,13 +179,14 @@ export class ClinicaAvisosComponent {
       id,
       'DESCARTADA',
       this.discardReason(),
+      this.discardNote().trim() || undefined,
       this.discardReason() === 'FALLECIMIENTO_BAJA'
     ).pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
       next: () => {
         this.discardAvisoId.set(null);
         this.load();
       },
-      error: () => this.error.set('No se pudo descartar el aviso.')
+      error: error => this.actionError.set(httpErrorMessage(error, 'No se pudo descartar el aviso.'))
     });
   }
 
@@ -196,7 +212,7 @@ export class ClinicaAvisosComponent {
       takeUntilDestroyed(this.destroyRef)
     ).subscribe({
       next: updated => this.replace(updated),
-      error: () => this.error.set('No se pudo actualizar el estado.')
+      error: error => this.actionError.set(httpErrorMessage(error, 'No se pudo actualizar el estado.'))
     });
   }
 

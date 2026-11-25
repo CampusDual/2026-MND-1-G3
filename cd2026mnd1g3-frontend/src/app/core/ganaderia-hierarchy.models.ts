@@ -1,5 +1,10 @@
 export type GanaderiaGroupType = 'SUBTIPO' | 'UBICACION' | 'ESTADO_SANITARIO';
-export type GanaderiaEstadoSanitario = 'SANO' | 'EN_TRATAMIENTO' | 'ENFERMO';
+export type GanaderiaEstadoSanitario =
+  | 'SANO'
+  | 'EN_TRATAMIENTO'
+  | 'EN_RETIRADA_MEDICAMENTO'
+  | 'ENFERMO'
+  | 'CUARENTENA';
 
 export interface GanaderiaSubtype {
   groupId: string;
@@ -73,9 +78,14 @@ export interface GanaderiaOperacionCampo {
   sincronizada: boolean;
 }
 
+export interface GanaderiaOperacionCampoSyncResult {
+  operationId: string;
+  estado: string;
+}
+
 export interface GanaderiaBulkEstadoRequest {
   animalIds: number[];
-  estadoSanitario: 'SANO' | 'EN_TRATAMIENTO' | 'ENFERMO';
+  estadoSanitario: GanaderiaEstadoSanitario;
 }
 
 export interface GanaderiaBulkProtocoloRequest {

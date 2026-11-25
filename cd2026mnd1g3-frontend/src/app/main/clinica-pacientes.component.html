@@ -1,0 +1,60 @@
+<main class="patients-page">
+  <header class="page-header">
+    <div>
+      <span class="eyebrow">VETCONTROL · CLÍNICAS</span>
+      <h1>Pacientes</h1>
+      <p>Busca una mascota para consultar su ficha clínica.</p>
+    </div>
+  </header>
+
+  <section class="directory">
+    <label for="patient-search">Buscar por nombre de mascota</label>
+    <input id="patient-search" type="search" [formControl]="search" placeholder="Escribe el nombre">
+
+    @if (error()) { <p class="error" role="alert">{{ error() }}</p> }
+    @if (loading()) {
+      <p class="status" role="status">Cargando pacientes…</p>
+    } @else {
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr><th>Nombre</th><th>Especie / raza</th><th>Propietario</th><th>Teléfono</th><th>Banderas clínicas</th></tr>
+          </thead>
+          <tbody>
+            @for (patient of patients(); track patient.id) {
+              <tr tabindex="0" (click)="openPatient(patient.id)"
+                (keydown.enter)="openPatient(patient.id)" (keydown.space)="openPatient(patient.id); $event.preventDefault()">
+                <td><a [routerLink]="['/clinica/pacientes', patient.id]" (click)="$event.stopPropagation()">{{ patient.nombre }}</a></td>
+                <td>{{ patient.especie }} / {{ patient.raza || 'Sin raza indicada' }}</td>
+                <td>{{ patient.propietario.nombre }} {{ patient.propietario.apellidos }}</td>
+                <td>{{ patient.propietario.telefono }}</td>
+                <td class="flags">
+                  @if (patient.alergias) { <span>Alergias</span> }
+                  @if (patient.manejoNervioso) { <span>Manejo nervioso</span> }
+                  @if (patient.patologiaCronica) { <span>Patología crónica</span> }
+                  @if (!patient.alergias && !patient.manejoNervioso && !patient.patologiaCronica) { <span>Sin banderas</span> }
+                </td>
+              </tr>
+            } @empty {
+              <tr><td colspan="5" class="empty">
+                @if (search.value.trim()) {
+                  No se encontraron pacientes con ese nombre.
+                } @else {
+                  <strong>Aún no hay pacientes.</strong>
+                  <a class="empty-action" routerLink="/clinica/pacientes/nueva">Dar de alta la primera mascota</a>
+                }
+              </td></tr>
+            }
+          </tbody>
+        </table>
+      </div>
+      <footer class="pagination">
+        <span>{{ totalElements() }} pacientes · página {{ totalPages() ? page() + 1 : 0 }} de {{ totalPages() }}</span>
+        <div>
+          <button type="button" [disabled]="page() === 0" (click)="setPage(page() - 1)">Anterior</button>
+          <button type="button" [disabled]="page() + 1 >= totalPages()" (click)="setPage(page() + 1)">Siguiente</button>
+        </div>
+      </footer>
+    }
+  </section>
+</main>

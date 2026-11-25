@@ -10,21 +10,32 @@
       <span class="eyebrow">ESPACIO AISLADO</span>
       <h1>{{ farmName() }}</h1>
     </div>
-    <div class="mode-switch">
-      <button type="button" [class.active]="groupType() === 'SUBTIPO'" (click)="setGroupType('SUBTIPO')">Por subtipo</button>
-      <button type="button" [class.active]="groupType() === 'UBICACION'" (click)="setGroupType('UBICACION')">Por ubicación</button>
-      <button type="button" [class.active]="groupType() === 'ESTADO_SANITARIO'" (click)="setGroupType('ESTADO_SANITARIO')">Por estado</button>
-      <button type="button" class="primary-action" (click)="openAddDrawer()">+ Añadir animal / lote</button>
-    </div>
+    @if (tab() === 'animales') {
+      <div class="mode-switch">
+        <button type="button" [class.active]="groupType() === 'SUBTIPO'" (click)="setGroupType('SUBTIPO')">Por subtipo</button>
+        <button type="button" [class.active]="groupType() === 'UBICACION'" (click)="setGroupType('UBICACION')">Por ubicación</button>
+        <button type="button" [class.active]="groupType() === 'ESTADO_SANITARIO'" (click)="setGroupType('ESTADO_SANITARIO')">Por estado</button>
+        <button type="button" class="primary-action" (click)="openAddDrawer()">+ Añadir animal / lote</button>
+      </div>
+    }
   </header>
 
-  @if (loading() && groups().length === 0) {
-    <section class="skeleton"><div></div><div></div><div></div></section>
-  } @else if (error()) {
+  <nav class="farm-tabs" aria-label="Secciones de explotación">
+    <button type="button" [class.active]="tab() === 'animales'" (click)="setTab('animales')">Animales</button>
+    <button type="button" [class.active]="tab() === 'protocolos'" (click)="setTab('protocolos')">Protocolos</button>
+    <button type="button" [class.active]="tab() === 'alertas'" (click)="setTab('alertas')">Alertas</button>
+  </nav>
+
+  @if (error()) {
     <section class="message error" role="alert">
       <strong>{{ error() }}</strong>
       <button type="button" (click)="retry()">Reintentar</button>
     </section>
+  }
+
+  @if (tab() === 'animales') {
+  @if (loading() && groups().length === 0) {
+    <section class="skeleton"><div></div><div></div><div></div></section>
   } @else {
     <section class="group-grid" aria-label="Grupos del rebaño">
       @for (group of groups(); track group.groupId) {
@@ -41,7 +52,7 @@
         <header>
           <div><span class="eyebrow">NIVEL 3</span><h2>{{ group.label }}</h2></div>
           <label>Buscar
-            <input type="search" [ngModel]="search()" (ngModelChange)="search.set($event); setPage(0)">
+            <input type="search" [ngModel]="search()" (ngModelChange)="onAnimalSearch($event)">
           </label>
         </header>
         @if (selectedIds().length) {
@@ -63,6 +74,24 @@
               </select>
               <button type="button" (click)="aplicarUbicacionMasiva()">Aplicar</button>
             </label>
+            <label>Estado sanitario
+              <select [ngModel]="bulkHealthStatus()" (ngModelChange)="bulkHealthStatus.set($event)">
+                <option value="SANO">SANO</option>
+                <option value="EN_TRATAMIENTO">EN_TRATAMIENTO</option>
+                <option value="EN_RETIRADA_MEDICAMENTO">EN_RETIRADA_MEDICAMENTO</option>
+                <option value="ENFERMO">ENFERMO</option>
+                <option value="CUARENTENA">CUARENTENA</option>
+              </select>
+              <button type="button" (click)="aplicarEstadoMasivo()">Aplicar</button>
+            </label>
+            <label>Vacunación / revisión
+              <select [ngModel]="bulkProtocolType()" (ngModelChange)="bulkProtocolType.set($event)">
+                <option value="VACUNACION">Vacunación</option>
+                <option value="REVISION_PERIODICA">Revisión rápida</option>
+              </select>
+              <input [ngModel]="bulkProtocolTitle()" (ngModelChange)="bulkProtocolTitle.set($event)" placeholder="Título">
+              <button type="button" (click)="applyQuickProtocol()">Aplicar</button>
+            </label>
             <button type="button" class="deselect" (click)="deseleccionar()">Deseleccionar</button>
           </div>
         }
@@ -81,7 +110,7 @@
                   <td>{{ animal.name || 'Sin nombre' }}</td>
                   <td>{{ animal.subtipo || 'Sin clasificar' }}</td>
                   <td>{{ animal.ubicacion || 'Sin ubicación' }}</td>
-                  <td>{{ animal.estadoSanitario || 'SANO' }}</td>
+                  <td>{{ animal.estadoSanitario || 'Sin estado' }}</td>
                   <td>{{ animal.cantidadCabezas || 1 }}</td>
                 </tr>
               }
@@ -96,6 +125,127 @@
       </section>
     }
   }
+  }
+
+  @if (tab() === 'protocolos') {
+    <section class="protocol-layout">
+      <article class="protocol-panel">
+        <span class="eyebrow">MOTOR CÍCLICO</span>
+        <h2>Registrar protocolo</h2>
+        <form (ngSubmit)="createProtocol()">
+          <label>Tipo
+            <select [ngModel]="protocolType()" (ngModelChange)="protocolType.set($event)" name="eventType">
+              <option value="VACUNACION">Vacunación</option>
+              <option value="TRATAMIENTO_MEDICO">Tratamiento médico</option>
+              <option value="PARTO">Parto</option>
+              <option value="REVISION_PERIODICA">Revisión periódica</option>
+            </select>
+          </label>
+          <label>Título
+            <input [ngModel]="protocolTitle()" (ngModelChange)="protocolTitle.set($event)" name="title" required maxlength="150">
+          </label>
+          <label>Fecha
+            <input type="date" [ngModel]="protocolDate()" (ngModelChange)="protocolDate.set($event)" name="applicationDate" required>
+          </label>
+          <label>Animal de esta explotación (opcional)
+            <select [ngModel]="protocolAnimalId()" (ngModelChange)="protocolAnimalId.set($event)" name="animalId">
+              <option [ngValue]="null">Toda la explotación</option>
+              @for (animal of protocolAnimals(); track animal.id) {
+                <option [ngValue]="animal.id">{{ animal.earTag }} · {{ animal.name || 'Sin nombre' }}</option>
+              }
+            </select>
+          </label>
+          <div class="animal-lookup">
+            <label>Buscar animal por crotal
+              <input [ngModel]="protocolAnimalSearch()" (ngModelChange)="protocolAnimalSearch.set($event)" name="animalSearch">
+            </label>
+            <button type="button" (click)="searchProtocolAnimal()">Buscar en esta explotación</button>
+          </div>
+          @if (protocolAnimalMatch(); as animal) {
+            <p class="lookup-result">Seleccionado: {{ animal.earTag }} · {{ animal.name || 'Sin nombre' }}</p>
+          }
+          <label>Medicamento (opcional)
+            <select [ngModel]="protocolMedicationId()" (ngModelChange)="onMedicationChange($event)" name="medicationId">
+              <option [ngValue]="null">Sin uso de medicamento</option>
+              @for (medication of medications(); track medication.id) {
+                <option [ngValue]="medication.id">{{ medication.nombreComercial }} · {{ medication.principioActivo }}</option>
+              }
+            </select>
+          </label>
+          @if (protocolMedicationId() !== null) {
+            <div class="form-grid">
+              <label>Lote con stock
+                <select [ngModel]="protocolLotId()" (ngModelChange)="protocolLotId.set($event)" name="lotId">
+                  <option [ngValue]="null">Selecciona un lote</option>
+                  @for (lot of availableLots(); track lot.id) {
+                    <option [ngValue]="lot.id">{{ lot.numeroLote }} · Stock {{ stockOfLot(lot.id) }}</option>
+                  }
+                </select>
+              </label>
+              <label>Cantidad administrada
+                <input type="number" min="0.01" step="0.01" [ngModel]="protocolQuantity()" (ngModelChange)="protocolQuantity.set($event)" name="quantity">
+              </label>
+            </div>
+          }
+          <div class="form-grid">
+            <label>Días de retirada
+              <input type="number" min="0" [ngModel]="protocolWithdrawalDays()" (ngModelChange)="protocolWithdrawalDays.set($event)" name="withdrawalDays">
+            </label>
+            <label>Próximo ciclo (días)
+              <input type="number" min="0" [ngModel]="protocolNextCycleDays()" (ngModelChange)="protocolNextCycleDays.set($event)" name="nextCycleDays">
+            </label>
+          </div>
+          <button class="primary-action" type="submit">Guardar y programar avisos</button>
+        </form>
+      </article>
+      <article class="protocol-panel">
+        <span class="eyebrow">HISTORIAL</span>
+        <h2>Protocolos de {{ farmName() }}</h2>
+        @if (protocols().length === 0) {
+          <p class="empty">No hay protocolos registrados para esta explotación.</p>
+        } @else {
+          <div class="history-list">
+            @for (protocol of protocols(); track protocol.id) {
+              <article>
+                <strong>{{ protocol.title }}</strong>
+                <span>{{ protocol.eventType }} · {{ protocol.applicationDate }} · {{ protocol.status || '—' }}</span>
+                <small>{{ protocol.withdrawalDays }} días de retirada · Animal {{ protocol.animalId || 'toda la explotación' }}</small>
+              </article>
+            }
+          </div>
+        }
+      </article>
+    </section>
+  }
+
+  @if (tab() === 'alertas') {
+    <section class="alerts-panel">
+      <span class="eyebrow">COMUNICACIONES</span>
+      <h2>Alertas de {{ farmName() }}</h2>
+      @if (farmAlerts().length === 0) {
+        <p class="empty">No hay alertas para esta explotación.</p>
+      } @else {
+        @for (alert of farmAlerts(); track alert.id) {
+          <article class="farm-alert">
+            <div>
+              <small>{{ alert.tipoAlerta }} · {{ alert.fechaProgramada | date:'dd/MM/yyyy HH:mm' }}</small>
+              <h3>{{ alert.titulo }}</h3>
+              <p>{{ alert.mensaje }}</p>
+              @if (alert.confirmadaPorGranja) { <strong>Confirmada por granja</strong> }
+            </div>
+            <div class="alert-actions">
+              <button type="button" [disabled]="alert.leida" (click)="markAlertRead(alert)">
+                {{ alert.leida ? 'Leída' : 'Marcar como leída' }}
+              </button>
+              <button type="button" [disabled]="alert.confirmadaPorGranja" (click)="confirmAlert(alert)">
+                {{ alert.confirmadaPorGranja ? 'Confirmada' : 'Confirmar ejecución en granja' }}
+              </button>
+            </div>
+          </article>
+        }
+      }
+    </section>
+  }
 </main>
 
 @if (selectedAnimal(); as animal) {
@@ -107,7 +257,10 @@
       <dt>Especie</dt><dd>{{ animal.species }}</dd>
       <dt>Subtipo</dt><dd>{{ animal.subtipo || 'Sin clasificar' }}</dd>
       <dt>Ubicación</dt><dd>{{ animal.ubicacion || 'Sin ubicación' }}</dd>
-      <dt>Estado</dt><dd>{{ animal.estadoSanitario || 'SANO' }}</dd>
+      <dt>Estado</dt><dd>{{ animal.estadoSanitario || 'Sin estado' }}</dd>
+      @if (animal.fechaFinRetirada) {
+        <dt>Fin de retirada</dt><dd>{{ animal.fechaFinRetirada | date:'dd/MM/yyyy' }}</dd>
+      }
       <dt>Cabezas</dt><dd>{{ animal.cantidadCabezas || 1 }}</dd>
     </dl>
     <section class="quick-edit">
@@ -118,6 +271,15 @@
         <input [ngModel]="editUbicacion()" (ngModelChange)="editUbicacion.set($event)" placeholder="NAVE_1">
       </label>
       <button type="button" (click)="clasificarIndividual(animal)">Guardar clasificación</button>
+      <label>Estado sanitario
+        <select [ngModel]="selectedHealthStatus()" (ngModelChange)="selectedHealthStatus.set($event)">
+          @for (status of healthStatuses; track status) { <option [value]="status">{{ status }}</option> }
+        </select>
+      </label>
+      <label>Notas sanitarias
+        <textarea [ngModel]="statusNotes()" (ngModelChange)="statusNotes.set($event)" rows="3"></textarea>
+      </label>
+      <button type="button" (click)="updateAnimalStatus(animal)">Actualizar estado sanitario</button>
     </section>
   </aside>
 }
@@ -155,7 +317,9 @@
         <select formControlName="estadoSanitario">
           <option value="SANO">SANO</option>
           <option value="EN_TRATAMIENTO">EN_TRATAMIENTO</option>
+          <option value="EN_RETIRADA_MEDICAMENTO">EN_RETIRADA_MEDICAMENTO</option>
           <option value="ENFERMO">ENFERMO</option>
+          <option value="CUARENTENA">CUARENTENA</option>
         </select>
       </label>
       <label>Número de cabezas

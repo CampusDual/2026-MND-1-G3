@@ -96,3 +96,32 @@ export interface ConsultaClinica {
   notas?: string;
   proximaVacuna?: string;
 }
+
+export interface AltaConsultaClinicaRequest {
+  pacienteId: number;
+  fechaConsulta: string;
+  motivo?: string;
+  notas?: string;
+  proximaVacuna?: string;
+}
+
+export interface RecetaClinica {
+  id: number;
+  clinicaId: number;
+  consultaId: number;
+  pacienteId: number;
+  nombrePaciente: string;
+  medicamentoId?: number;
+  loteStockId?: number;
+  indicaciones?: string;
+  fechaEmision: string;
+}
+
+export interface AltaRecetaClinicaRequest {
+  consultaId: number;
+  pacienteId: number;
+  medicamentoId?: number;
+  loteStockId?: number;
+  indicaciones?: string;
+  fechaEmision: string;
+}

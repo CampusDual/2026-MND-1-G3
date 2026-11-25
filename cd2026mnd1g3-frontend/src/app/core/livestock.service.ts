@@ -1,7 +1,6 @@
 import { Injectable, inject } from '@angular/core';
-import { HttpClient, HttpHeaders } from '@angular/common/http';
+import { HttpClient } from '@angular/common/http';
 import { Observable } from 'rxjs';
-import { AuthService } from './auth.service';
 
 export type AnimalHealthStatus = 'SANO' | 'EN_TRATAMIENTO' | 'EN_RETIRADA_MEDICAMENTO' | 'ENFERMO' | 'CUARENTENA';
 export type ProtocolEventType = 'VACUNACION' | 'TRATAMIENTO_MEDICO' | 'PARTO' | 'REVISION_PERIODICA';
@@ -20,22 +19,9 @@ export interface Farm {
   veterinarianAssignedPhone?: string;
 }
 
-export interface Animal {
-  id?: number;
-  earTag: string;
-  name?: string;
-  species: string;
-  birthDate: string;
-  healthStatus: string;
-  estadoSanitario?: AnimalHealthStatus;
-  fechaFinRetirada?: string;
-  notas?: string;
-  farmId: number;
-}
-
 export interface ProtocolEvent {
   id?: number;
-  eventType: string;
+  eventType: ProtocolEventType;
   title: string;
   applicationDate: string;
   withdrawalDays: number;
@@ -94,26 +80,23 @@ export interface MovimientoInventario {
 @Injectable({ providedIn: 'root' })
 export class LivestockService {
   private readonly http = inject(HttpClient);
-  private readonly auth = inject(AuthService);
-  private options(): { headers: HttpHeaders } { return { headers: new HttpHeaders({ Authorization: this.auth.getAuthHeader() }) }; }
-  farms(): Observable<Farm[]> { return this.http.get<Farm[]>('/api/explotaciones', this.options()); }
-  animals(): Observable<Animal[]> { return this.http.get<Animal[]>('/api/ganaderia/animales', this.options()); }
-  protocols(): Observable<ProtocolEvent[]> { return this.http.get<ProtocolEvent[]>('/api/protocolos', this.options()); }
-  alerts(): Observable<AlertaSistema[]> { return this.http.get<AlertaSistema[]>('/api/alertas', this.options()); }
-  markAlertRead(id: number): Observable<AlertaSistema> { return this.http.post<AlertaSistema>(`/api/alertas/${id}/leida`, {}, this.options()); }
-  confirmAlert(id: number): Observable<AlertaSistema> { return this.http.post<AlertaSistema>(`/api/alertas/${id}/confirmar-granja`, {}, this.options()); }
-  createProtocol(protocol: ProtocolEvent): Observable<ProtocolEvent> { return this.http.post<ProtocolEvent>('/api/protocolos-ciclicos', protocol, this.options()); }
-  runDailyReview(): Observable<void> { return this.http.post<void>('/api/protocolos-ciclicos/ejecutar-revision-diaria', {}, this.options()); }
+  farms(): Observable<Farm[]> { return this.http.get<Farm[]>('/api/explotaciones'); }
+  farmById(id: number): Observable<Farm> { return this.http.get<Farm>(`/api/explotaciones/${id}`); }
+  protocols(): Observable<ProtocolEvent[]> { return this.http.get<ProtocolEvent[]>('/api/protocolos'); }
+  alerts(): Observable<AlertaSistema[]> { return this.http.get<AlertaSistema[]>('/api/alertas'); }
+  markAlertRead(id: number): Observable<AlertaSistema> { return this.http.post<AlertaSistema>(`/api/alertas/${id}/leida`, {}); }
+  confirmAlert(id: number): Observable<AlertaSistema> { return this.http.post<AlertaSistema>(`/api/alertas/${id}/confirmar-granja`, {}); }
+  createProtocol(protocol: ProtocolEvent): Observable<ProtocolEvent> { return this.http.post<ProtocolEvent>('/api/protocolos', protocol); }
+  runDailyReview(): Observable<void> { return this.http.post<void>('/api/protocolos-ciclicos/ejecutar-revision-diaria', {}); }
   updateAnimalStatus(id: number, status: AnimalHealthStatus, notes: string): Observable<void> {
     const params = { estado: status, notas: notes };
-    return this.http.post<void>(`/api/ganaderia/animales/${id}/estado`, {}, { ...this.options(), params });
+    return this.http.post<void>(`/api/ganaderia/animales/${id}/estado`, {}, { params });
   }
-  medicamentos(): Observable<Medicamento[]> { return this.http.get<Medicamento[]>('/api/inventario/medicamentos', this.options()); }
-  lotes(): Observable<LoteStock[]> { return this.http.get<LoteStock[]>('/api/inventario/lotes', this.options()); }
-  movimientos(): Observable<MovimientoInventario[]> { return this.http.get<MovimientoInventario[]>('/api/inventario/movimientos', this.options()); }
+  medicamentos(): Observable<Medicamento[]> { return this.http.get<Medicamento[]>('/api/inventario/medicamentos'); }
+  lotes(): Observable<LoteStock[]> { return this.http.get<LoteStock[]>('/api/inventario/lotes'); }
+  movimientos(): Observable<MovimientoInventario[]> { return this.http.get<MovimientoInventario[]>('/api/inventario/movimientos'); }
   registrarMovimiento(movimiento: { loteStockId: number; cantidad: number; tipo: TipoMovimiento; veterinarioId?: number; animalId?: number; explotacionId?: number; protocoloEventoId?: number }): Observable<MovimientoInventario> {
     return this.http.post<MovimientoInventario>('/api/inventario/movimientos', {}, {
-      ...this.options(),
       params: {
         loteStockId: movimiento.loteStockId,
         cantidad: movimiento.cantidad,

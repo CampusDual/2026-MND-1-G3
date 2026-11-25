@@ -1,17 +1,36 @@
-import { ChangeDetectionStrategy, Component, DestroyRef, inject, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, DestroyRef, computed, inject, signal } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { CommonModule } from '@angular/common';
 import { FormsModule, NonNullableFormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
+import { Subject, debounceTime, distinctUntilChanged } from 'rxjs';
 import { GanaderiaHierarchyService } from '../core/ganaderia-hierarchy.service';
 import {
   GanaderiaAnimal,
   GanaderiaAnimalPage,
   GanaderiaGroup,
-  GanaderiaGroupType
+  GanaderiaGroupType,
+  GanaderiaEstadoSanitario
 } from '../core/ganaderia-hierarchy.models';
 import { OpcionesClasificacion } from '../core/ganaderia-hierarchy.models';
 import { GanaderiaHudStateService } from '../core/ganaderia-hud-state.service';
+import {
+  AnimalHealthStatus,
+  AlertaSistema,
+  LivestockService,
+  LoteStock,
+  Medicamento,
+  MovimientoInventario,
+  ProtocolEvent,
+  ProtocolEventType
+} from '../core/livestock.service';
+import { AlertService } from '../core/alert.service';
+
+type FarmTab = 'animales' | 'protocolos' | 'alertas';
+
+const HEALTH_STATUSES: AnimalHealthStatus[] = [
+  'SANO', 'EN_TRATAMIENTO', 'EN_RETIRADA_MEDICAMENTO', 'ENFERMO', 'CUARENTENA'
+];
 
 /** Espacio aislado de explotacion y listado paginado del grupo seleccionado. */
 @Component({
@@ -29,10 +48,14 @@ export class GanaderiaExplotacionComponent {
   private readonly router = inject(Router);
   private readonly fb = inject(NonNullableFormBuilder);
   private readonly hud = inject(GanaderiaHudStateService);
+  private readonly livestock = inject(LivestockService);
+  private readonly alertService = inject(AlertService);
+  private readonly searchChanges = new Subject<string>();
 
   readonly farmId = signal(Number(this.route.snapshot.paramMap.get('farmId')));
   readonly farmName = signal('Explotación');
   readonly farmHeads = signal(0);
+  readonly tab = signal<FarmTab>('animales');
   readonly groupType = signal<GanaderiaGroupType>('SUBTIPO');
   readonly groups = signal<GanaderiaGroup[]>([]);
   readonly selectedGroup = signal<GanaderiaGroup | null>(null);
@@ -42,7 +65,7 @@ export class GanaderiaExplotacionComponent {
   readonly totalElements = signal(0);
   readonly totalPages = signal(0);
   readonly search = signal('');
-  readonly selectedIds = signal<number[]>([]);
+  readonly selectedIds = this.hud.selectedIds;
   readonly selectedAnimal = signal<GanaderiaAnimal | null>(null);
   readonly loading = signal(false);
   readonly error = signal('');
@@ -56,6 +79,35 @@ export class GanaderiaExplotacionComponent {
   });
   readonly subtypeAction = signal('');
   readonly locationAction = signal('');
+  readonly bulkHealthStatus = signal<GanaderiaEstadoSanitario>('SANO');
+  readonly bulkProtocolType = signal<'VACUNACION' | 'REVISION_PERIODICA'>('VACUNACION');
+  readonly bulkProtocolTitle = signal('');
+  readonly protocolTitle = signal('');
+  readonly protocolType = signal<ProtocolEventType>('TRATAMIENTO_MEDICO');
+  readonly protocolDate = signal(new Date().toISOString().slice(0, 10));
+  readonly protocolMedicationId = signal<number | null>(null);
+  readonly protocolLotId = signal<number | null>(null);
+  readonly protocolQuantity = signal<number | null>(null);
+  readonly protocolWithdrawalDays = signal<number | null>(null);
+  readonly protocolNextCycleDays = signal<number | null>(0);
+  readonly protocolAnimalId = signal<number | null>(null);
+  readonly protocolAnimalSearch = signal('');
+  readonly protocolAnimalMatch = signal<GanaderiaAnimal | null>(null);
+  readonly protocols = signal<ProtocolEvent[]>([]);
+  readonly medications = signal<Medicamento[]>([]);
+  readonly lots = signal<LoteStock[]>([]);
+  readonly movements = signal<MovimientoInventario[]>([]);
+  readonly alerts = signal<AlertaSistema[]>([]);
+  readonly selectedHealthStatus = signal<AnimalHealthStatus>('SANO');
+  readonly statusNotes = signal('');
+  readonly farmAlerts = computed(() => this.alerts().filter(alert => alert.explotacionId === this.farmId()));
+  readonly protocolAnimals = computed(() => {
+    const available = [...this.animals()];
+    const match = this.protocolAnimalMatch();
+    if (match && !available.some(animal => animal.id === match.id)) available.push(match);
+    return available;
+  });
+  readonly healthStatuses = HEALTH_STATUSES;
 
   readonly addForm = this.fb.group({
     crotal: ['', [Validators.required, Validators.maxLength(40)]],
@@ -64,16 +116,25 @@ export class GanaderiaExplotacionComponent {
     ubicacion: this.fb.control(''),
     subtipoPersonalizado: this.fb.control(''),
     ubicacionPersonalizada: this.fb.control(''),
-    estadoSanitario: this.fb.control<'SANO' | 'EN_TRATAMIENTO' | 'ENFERMO'>('SANO'),
+    estadoSanitario: this.fb.control<GanaderiaEstadoSanitario>('SANO'),
     cabezas: this.fb.control(1, [Validators.required, Validators.min(1)])
   });
   readonly editSubtipo = signal('');
   readonly editUbicacion = signal('');
-  readonly editEstado = signal<'SANO' | 'EN_TRATAMIENTO' | 'ENFERMO'>('SANO');
 
   constructor() {
     this.hud.activeFarmId.set(this.farmId());
     this.hud.selectedIds.set([]);
+    this.alertService.alerts.pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe(alerts => this.alerts.set(alerts));
+    this.route.queryParamMap.pipe(takeUntilDestroyed(this.destroyRef)).subscribe(params => {
+      const tab = params.get('tab');
+      if (tab === 'animales' || tab === 'protocolos' || tab === 'alertas') {
+        this.tab.set(tab);
+      } else {
+        this.tab.set('animales');
+      }
+    });
     const type = this.route.snapshot.queryParamMap.get('type');
     if (type === 'UBICACION' || type === 'ESTADO_SANITARIO' || type === 'SUBTIPO') {
       this.groupType.set(type);
@@ -92,21 +153,171 @@ export class GanaderiaExplotacionComponent {
         pendingActions: 0
       });
     }
-    this.loadGroups();
-    this.loadOptions();
-    this.loadFarmName();
+    this.searchChanges.pipe(
+      debounceTime(300),
+      distinctUntilChanged(),
+      takeUntilDestroyed(this.destroyRef)
+    ).subscribe(search => {
+      this.page.set(0);
+      void this.router.navigate([], {
+        relativeTo: this.route,
+        queryParams: { search: search || null, page: 0 },
+        queryParamsHandling: 'merge'
+      });
+      this.loadAnimals();
+    });
+    this.route.paramMap.pipe(takeUntilDestroyed(this.destroyRef)).subscribe(params => {
+      const farmId = Number(params.get('farmId'));
+      if (!Number.isInteger(farmId) || farmId <= 0) {
+        this.error.set('La explotación indicada no es válida.');
+        return;
+      }
+      if (farmId !== this.farmId()) {
+        this.farmId.set(farmId);
+        this.hud.activeFarmId.set(farmId);
+        this.hud.selectedIds.set([]);
+        this.selectedGroup.set(null);
+      }
+      this.loadGroups(this.route.snapshot.queryParamMap.get('group'));
+      this.loadOptions();
+      this.loadFarmName();
+      this.loadProtocols();
+      this.loadInventory();
+    });
   }
 
   private loadFarmName(): void {
-    this.service.findFarms('', 0, 100).pipe(
-      takeUntilDestroyed(this.destroyRef)
-    ).subscribe(page => {
-      const farm = page.content.find(item => item.farmId === this.farmId());
-      if (farm) {
+    this.livestock.farmById(this.farmId()).pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
+      next: farm => {
         this.farmName.set(farm.name);
-        this.farmHeads.set(farm.totalHeads);
         this.hud.activeFarmName.set(farm.name);
+      },
+      error: () => this.error.set('No se pudo cargar la explotación.')
+    });
+  }
+
+  setTab(tab: FarmTab): void {
+    void this.router.navigate([], {
+      relativeTo: this.route,
+      queryParams: { tab },
+      queryParamsHandling: 'merge'
+    });
+  }
+
+  onAnimalSearch(search: string): void {
+    this.search.set(search);
+    this.searchChanges.next(search);
+  }
+
+  searchProtocolAnimal(): void {
+    const crotal = this.protocolAnimalSearch().trim();
+    if (!crotal) return;
+    this.service.findByCrotal(this.farmId(), crotal).pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
+      next: animal => {
+        this.protocolAnimalMatch.set(animal);
+        this.protocolAnimalId.set(animal.id);
+        this.error.set('');
+      },
+      error: () => {
+        this.protocolAnimalMatch.set(null);
+        this.protocolAnimalId.set(null);
+        this.error.set('No se encontró ese crotal en esta explotación.');
       }
+    });
+  }
+
+  stockOfLot(lotId: number): number {
+    return this.movements().filter(movement => movement.loteStockId === lotId)
+      .reduce((total, movement) => total + movement.cantidad, 0);
+  }
+
+  availableLots(): LoteStock[] {
+    return this.lots().filter(lot =>
+      (this.protocolMedicationId() === null || lot.medicamentoId === this.protocolMedicationId())
+      && this.stockOfLot(lot.id) > 0);
+  }
+
+  onMedicationChange(medicationId: number | null): void {
+    this.protocolMedicationId.set(medicationId);
+    this.protocolLotId.set(null);
+    this.protocolQuantity.set(null);
+  }
+
+  createProtocol(): void {
+    const title = this.protocolTitle().trim();
+    const medicationId = this.protocolMedicationId();
+    const lotId = this.protocolLotId();
+    const quantity = this.protocolQuantity();
+    const withdrawalDays = this.protocolWithdrawalDays();
+    if (!title) {
+      this.error.set('El título del protocolo es obligatorio.');
+      return;
+    }
+    if ((withdrawalDays !== null && withdrawalDays < 0)
+      || (this.protocolNextCycleDays() !== null && (this.protocolNextCycleDays() ?? 0) < 0)) {
+      this.error.set('Los días de retirada y del próximo ciclo no pueden ser negativos.');
+      return;
+    }
+    if (medicationId !== null
+      && (lotId === null || quantity === null || quantity <= 0 || withdrawalDays === null || withdrawalDays < 0)) {
+      this.error.set('Con medicamento, selecciona lote, cantidad válida y días de retirada.');
+      return;
+    }
+    if (medicationId !== null && lotId !== null && quantity !== null && quantity > this.stockOfLot(lotId)) {
+      this.error.set('La cantidad supera el stock disponible del lote.');
+      return;
+    }
+    const protocol: ProtocolEvent = {
+      eventType: this.protocolType(),
+      title,
+      applicationDate: this.protocolDate(),
+      withdrawalDays: withdrawalDays ?? 0,
+      nextCycleDays: this.protocolNextCycleDays() ?? 0,
+      status: 'PROGRAMADO',
+      farmId: this.farmId(),
+      animalId: this.protocolAnimalId() ?? undefined,
+      loteStockId: medicationId === null ? undefined : lotId ?? undefined,
+      cantidadUsada: medicationId === null ? undefined : quantity ?? undefined
+    };
+    this.error.set('');
+    this.livestock.createProtocol(protocol).pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
+      next: () => {
+        this.protocolTitle.set('');
+        this.protocolMedicationId.set(null);
+        this.protocolLotId.set(null);
+        this.protocolQuantity.set(null);
+        this.protocolWithdrawalDays.set(null);
+        this.protocolNextCycleDays.set(0);
+        this.protocolAnimalId.set(null);
+        this.protocolAnimalSearch.set('');
+        this.protocolAnimalMatch.set(null);
+        this.toast.set('Protocolo registrado correctamente.');
+        this.refreshAfterMutation();
+      },
+      error: () => this.error.set('No se pudo registrar el protocolo ni descontar el stock.')
+    });
+  }
+
+  applyQuickProtocol(): void {
+    const ids = this.selectedIds();
+    const title = this.bulkProtocolTitle().trim();
+    if (ids.length === 0 || !title) {
+      this.error.set('Selecciona animales y escribe el título del protocolo.');
+      return;
+    }
+    this.service.aplicarProtocoloMasivo(this.farmId(), {
+      animalIds: ids,
+      eventType: this.bulkProtocolType(),
+      title,
+      applicationDate: new Date().toISOString().slice(0, 10),
+      withdrawalDays: 0
+    }).pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
+      next: count => {
+        this.toast.set(`Actuación aplicada a ${count} animales.`);
+        this.bulkProtocolTitle.set('');
+        this.refreshAfterMutation();
+      },
+      error: () => this.error.set('No se pudo aplicar la vacunación o revisión.')
     });
   }
 
@@ -186,8 +397,22 @@ export class GanaderiaExplotacionComponent {
   }
 
   deseleccionar(): void {
-    this.selectedIds.set([]);
     this.hud.selectedIds.set([]);
+  }
+
+  aplicarEstadoMasivo(): void {
+    const ids = this.selectedIds();
+    if (!ids.length) return;
+    this.service.aplicarEstadoMasivo(this.farmId(), {
+      animalIds: ids,
+      estadoSanitario: this.bulkHealthStatus()
+    }).pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
+      next: count => {
+        this.toast.set(`Estado aplicado a ${count} animales.`);
+        this.refreshAfterMutation();
+      },
+      error: () => this.error.set('No se pudo aplicar el estado sanitario.')
+    });
   }
 
   clasificarIndividual(animal: GanaderiaAnimal): void {
@@ -204,6 +429,35 @@ export class GanaderiaExplotacionComponent {
     });
   }
 
+  updateAnimalStatus(animal: GanaderiaAnimal): void {
+    this.livestock.updateAnimalStatus(animal.id, this.selectedHealthStatus(), this.statusNotes())
+      .pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
+        next: () => {
+          this.toast.set('Estado sanitario actualizado.');
+          this.statusNotes.set('');
+          this.selectedAnimal.update(current => current
+            ? { ...current, estadoSanitario: this.selectedHealthStatus(), healthStatus: this.selectedHealthStatus() }
+            : current);
+          this.refreshAfterMutation();
+        },
+        error: () => this.error.set('No se pudo actualizar el estado sanitario del animal.')
+      });
+  }
+
+  markAlertRead(alert: AlertaSistema): void {
+    this.livestock.markAlertRead(alert.id).pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
+      next: updated => this.alertService.setInitialAlerts([updated]),
+      error: () => this.error.set('No se pudo marcar la alerta como leída.')
+    });
+  }
+
+  confirmAlert(alert: AlertaSistema): void {
+    this.livestock.confirmAlert(alert.id).pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
+      next: updated => this.alertService.setInitialAlerts([updated]),
+      error: () => this.error.set('No se pudo confirmar la ejecución en granja.')
+    });
+  }
+
   private loadOptions(): void {
     this.service.findOpcionesClasificacion(this.farmId()).pipe(
       takeUntilDestroyed(this.destroyRef)
@@ -214,11 +468,11 @@ export class GanaderiaExplotacionComponent {
   }
 
   private refreshAfterMutation(): void {
-    this.loadGroups();
+    this.hud.selectedIds.set([]);
+    this.loadGroups(this.selectedGroup()?.groupId ?? null);
     this.loadOptions();
-    if (this.selectedGroup()) {
-      this.loadAnimals();
-    }
+    this.loadProtocols();
+    this.loadInventory();
   }
 
   setGroupType(type: GanaderiaGroupType): void {
@@ -231,7 +485,10 @@ export class GanaderiaExplotacionComponent {
       queryParams: { type, group: null, page: 0, search: null },
       queryParamsHandling: 'merge'
     });
-    this.loadGroups();
+    this.page.set(0);
+    this.search.set('');
+    this.hud.selectedIds.set([]);
+    this.loadGroups(null);
   }
 
   selectGroup(group: GanaderiaGroup): void {
@@ -240,7 +497,7 @@ export class GanaderiaExplotacionComponent {
     this.page.set(0);
     void this.router.navigate([], {
       relativeTo: this.route,
-      queryParams: { type: this.groupType(), group: group.groupId, page: 0 },
+      queryParams: { type: this.groupType(), group: group.groupId, page: 0, search: this.search() || null },
       queryParamsHandling: 'merge'
     });
     this.loadAnimals();
@@ -280,17 +537,18 @@ export class GanaderiaExplotacionComponent {
   }
 
   toggleSelected(animalId: number): void {
-    this.selectedIds.update(ids =>
+    this.hud.selectedIds.update(ids =>
       ids.includes(animalId)
         ? ids.filter(id => id !== animalId)
         : [...ids, animalId]);
-    this.hud.selectedIds.set(this.selectedIds());
   }
 
   openDetail(animal: GanaderiaAnimal): void {
     this.selectedAnimal.set(animal);
     this.editSubtipo.set(animal.subtipo ?? '');
     this.editUbicacion.set(animal.ubicacion ?? '');
+    this.selectedHealthStatus.set(animal.estadoSanitario ?? 'SANO');
+    this.statusNotes.set(animal.notas ?? '');
   }
 
   closeDetail(): void {
@@ -298,14 +556,23 @@ export class GanaderiaExplotacionComponent {
   }
 
   retry(): void {
-    if (this.selectedGroup()) {
+    this.error.set('');
+    if (this.tab() === 'protocolos') {
+      this.loadProtocols();
+      this.loadInventory();
+    } else if (this.tab() === 'alertas') {
+      this.livestock.alerts().pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
+        next: alerts => this.alertService.setInitialAlerts(alerts),
+        error: () => this.error.set('No se pudieron cargar las alertas.')
+      });
+    } else if (this.selectedGroup()) {
       this.loadAnimals();
     } else {
-      this.loadGroups();
+      this.loadGroups(null);
     }
   }
 
-  private loadGroups(): void {
+  private loadGroups(preferredGroupId: string | null = null): void {
     this.loading.set(true);
     this.error.set('');
     this.service.findGroups(this.farmId(), this.groupType()).pipe(
@@ -319,11 +586,39 @@ export class GanaderiaExplotacionComponent {
         this.hud.totalHeads.set(sum);
         this.hud.activeAlerts.set(groups.reduce((total, group) => total + group.activeAlerts, 0));
         this.hud.pendingActions.set(groups.reduce((total, group) => total + group.pendingActions, 0));
+        const selected = preferredGroupId
+          ? groups.find(group => group.groupId === preferredGroupId)
+          : undefined;
+        this.selectedGroup.set(selected ?? null);
+        this.hud.activeGroupLabel.set(selected?.label ?? '');
+        if (selected) this.loadAnimals();
       },
       error: () => {
         this.loading.set(false);
         this.error.set('No se pudieron cargar los grupos de la explotación.');
       }
+    });
+  }
+
+  private loadProtocols(): void {
+    this.livestock.protocols().pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
+      next: protocols => this.protocols.set(protocols.filter(protocol => protocol.farmId === this.farmId())),
+      error: () => this.error.set('No se pudo cargar el historial de protocolos.')
+    });
+  }
+
+  private loadInventory(): void {
+    this.livestock.medicamentos().pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
+      next: medications => this.medications.set(medications),
+      error: () => this.error.set('No se pudo cargar el catálogo de medicamentos.')
+    });
+    this.livestock.lotes().pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
+      next: lots => this.lots.set(lots),
+      error: () => this.error.set('No se pudieron cargar los lotes de inventario.')
+    });
+    this.livestock.movimientos().pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
+      next: movements => this.movements.set(movements),
+      error: () => this.error.set('No se pudo cargar el stock de inventario.')
     });
   }
 }

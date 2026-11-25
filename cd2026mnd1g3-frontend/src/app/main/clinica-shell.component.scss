@@ -1,0 +1,8 @@
+:host { display: block; min-height: 100vh; background: #f4f6f5; color: #17352d; }
+.clinic-nav { position: sticky; top: 0; z-index: 30; display: flex; align-items: center; justify-content: space-between; gap: 20px; padding: 12px clamp(16px, 4vw, 48px); border-bottom: 1px solid #dfe8e3; background: #fffffff2; backdrop-filter: blur(10px); font-family: Inter, Arial, sans-serif; }
+.brand { color: #0d6e52; font-size: 15px; font-weight: 900; text-decoration: none; white-space: nowrap; }.brand span { color: #40544d; }
+nav, .actions { display: flex; align-items: center; gap: 6px; }nav a, .module-link, .new-patient { padding: 10px 12px; border-radius: 9px; color: #40544d; font-size: 12px; font-weight: 800; text-decoration: none; white-space: nowrap; }
+nav a.active { background: #e2f5eb; color: #0d6e52; }nav a:hover, .module-link:hover { background: #f1f6f3; }
+.new-patient { background: #0d6e52; color: #fff; }.new-patient:hover { background: #09553f; }
+@media (max-width: 900px) { .clinic-nav { flex-wrap: wrap; }.clinic-nav nav { order: 3; width: 100%; justify-content: space-between; }.actions { margin-left: auto; } }
+@media (max-width: 560px) { .clinic-nav { gap: 8px; padding: 10px 12px; }.brand { font-size: 13px; }.actions { gap: 3px; }.actions a { padding: 8px 7px; font-size: 10px; }nav a { padding: 9px 7px; font-size: 11px; } }

@@ -1,0 +1,28 @@
+<main class="home">
+  <header>
+    <span class="eyebrow">VETCONTROL · CLÍNICA</span>
+    <h1>Inicio</h1>
+    <p>Selecciona una sección para continuar.</p>
+  </header>
+  <section class="cards" aria-label="Secciones de clínica">
+    <a class="card" routerLink="/clinica/pacientes">
+      <span class="icon">🐾</span><h2>Pacientes</h2>
+      @if (patientCount() !== null) { <strong>{{ patientCount() }} <small>pacientes</small></strong> }
+      <span>Consultar el directorio y las fichas clínicas.</span>
+    </a>
+    <a class="card" routerLink="/clinica/pacientes/nueva">
+      <span class="icon">＋</span><h2>Nueva mascota</h2>
+      <span>Registrar una mascota y su propietario.</span>
+    </a>
+    <a class="card" routerLink="/clinica/avisos">
+      <span class="icon">◷</span><h2>Avisos</h2>
+      @if (noticeCount() !== null) { <strong>{{ noticeCount() }} <small>avisos</small></strong> }
+      <span>Revisar el tablero de avisos clínicos.</span>
+    </a>
+    <a class="card" routerLink="/clinica/inventario">
+      <span class="icon">▤</span><h2>Inventario</h2>
+      @if (lowStockCount() !== null) { <strong>{{ lowStockCount() }} <small>bajo mínimo</small></strong> }
+      <span>Gestionar stock, compras y movimientos.</span>
+    </a>
+  </section>
+</main>

@@ -1,0 +1,213 @@
+<main class="patient-page">
+  <header class="page-header">
+    <div>
+      <span class="eyebrow">VETCONTROL · FICHA CLÍNICA</span>
+      <h1>{{ patient()?.nombre || 'Paciente' }}</h1>
+      <p>{{ patient()?.especie }} · {{ patient()?.raza || 'Raza no especificada' }}</p>
+    </div>
+  </header>
+
+  @if (loading()) {
+    <p class="status" role="status">Cargando ficha clínica…</p>
+  } @else if (error() && !patient()) {
+    <p class="message error" role="alert">{{ error() }}</p>
+  } @else {
+    @if (patient(); as pet) {
+    @if (error()) { <p class="message error" role="alert">{{ error() }}</p> }
+    @if (success()) { <p class="message success" role="status">{{ success() }}</p> }
+
+    <section class="summary-grid">
+      <article class="panel">
+        <h2>Datos del paciente</h2>
+        <dl>
+          <dt>Microchip</dt><dd>{{ pet.microchip || 'Sin microchip' }}</dd>
+          <dt>Nacimiento</dt><dd>{{ pet.fechaNacimiento || (pet.edadAproxAnos !== undefined ? pet.edadAproxAnos + ' años aprox.' : 'Sin dato') }}</dd>
+          <dt>Sexo</dt><dd>{{ pet.sexo }}</dd>
+          <dt>Esterilización</dt><dd>{{ pet.esterilizado }}</dd>
+          <dt>Estado</dt><dd>{{ pet.estadoPaciente }}</dd>
+        </dl>
+      </article>
+      <article class="panel">
+        <h2>Propietario</h2>
+        <dl>
+          <dt>Nombre</dt><dd>{{ pet.propietario.nombre }} {{ pet.propietario.apellidos }}</dd>
+          <dt>Teléfono</dt><dd>{{ pet.propietario.telefono }}</dd>
+          <dt>Email</dt><dd>{{ pet.propietario.email || 'Sin email' }}</dd>
+          <dt>DNI/NIF</dt><dd>{{ pet.propietario.dniNif || 'Sin dato' }}</dd>
+        </dl>
+      </article>
+      <article class="panel flags-panel">
+        <h2>Banderas clínicas</h2>
+        @if (pet.alergias) { <span class="flag">Alergias</span> }
+        @if (pet.manejoNervioso) { <span class="flag">Manejo nervioso</span> }
+        @if (pet.patologiaCronica) { <span class="flag">Patología crónica</span> }
+        @if (pet.notaBanderas) { <p>{{ pet.notaBanderas }}</p> }
+        @if (!pet.alergias && !pet.manejoNervioso && !pet.patologiaCronica && !pet.notaBanderas) {
+          <p>Sin banderas clínicas registradas.</p>
+        }
+      </article>
+    </section>
+
+    <button class="primary new-consultation" type="button" (click)="openConsultationForm()">Nueva consulta</button>
+    <button class="secondary new-notice" type="button" (click)="openNoticeForm()">Nuevo aviso</button>
+    @if (pendingVaccineNotice()) {
+      <div class="message error vaccine-retry" role="alert">
+        <p>La consulta se guardó, pero no se pudo programar el aviso.</p>
+        @if (vaccineNoticeError()) { <small>{{ vaccineNoticeError() }}</small> }
+        <button class="secondary" type="button" [disabled]="schedulingVaccineNotice()" (click)="retryVaccineNotice()">
+          {{ schedulingVaccineNotice() ? 'Programando…' : 'Reintentar solo el aviso' }}
+        </button>
+      </div>
+    }
+    <section class="forms-grid">
+      @if (showConsultationForm()) {
+      <article class="panel">
+        <h2>Nueva consulta</h2>
+        <form [formGroup]="consultationForm" (ngSubmit)="submitConsultation()">
+          <div class="two-columns">
+            <label>Fecha
+              <input type="date" formControlName="fecha">
+              @if (fieldError(consultationForm.controls.fecha)) { <small class="field-error">{{ fieldError(consultationForm.controls.fecha) }}</small> }
+            </label>
+            <label>Hora local
+              <input type="time" formControlName="hora">
+              @if (fieldError(consultationForm.controls.hora)) { <small class="field-error">{{ fieldError(consultationForm.controls.hora) }}</small> }
+            </label>
+          </div>
+          <label>Motivo
+            <input formControlName="motivo" maxlength="500">
+            @if (fieldError(consultationForm.controls.motivo)) { <small class="field-error">{{ fieldError(consultationForm.controls.motivo) }}</small> }
+          </label>
+          <label>Notas
+            <textarea formControlName="notas" rows="3" maxlength="2000"></textarea>
+            @if (fieldError(consultationForm.controls.notas)) { <small class="field-error">{{ fieldError(consultationForm.controls.notas) }}</small> }
+          </label>
+          <fieldset>
+            <legend>Próxima vacuna (opcional)</legend>
+            <div class="two-columns">
+              <label>Fecha
+                <input type="date" formControlName="proximaVacuna">
+                @if (fieldError(consultationForm.controls.proximaVacuna)) { <small class="field-error">{{ fieldError(consultationForm.controls.proximaVacuna) }}</small> }
+              </label>
+              <label>Vacuna
+                <input formControlName="vacuna" maxlength="120">
+                @if (fieldError(consultationForm.controls.vacuna)) { <small class="field-error">{{ fieldError(consultationForm.controls.vacuna) }}</small> }
+              </label>
+            </div>
+          </fieldset>
+          <fieldset>
+            <legend>Receta opcional</legend>
+            <label>Medicamento
+              <select formControlName="medicamentoId">
+                <option [ngValue]="null">Sin medicamento</option>
+                @for (medication of medications(); track medication.id) {
+                  <option [ngValue]="medication.id">{{ medication.nombreComercial }} · {{ medication.principioActivo }}</option>
+                }
+              </select>
+            </label>
+            <div class="two-columns">
+              <label>Lote con stock
+                <select formControlName="loteStockId">
+                  <option [ngValue]="null">Selecciona lote</option>
+                  @for (lot of medicationLots(); track lot.id) {
+                    @if (stockOfLot(lot.id) > 0) {
+                      <option [ngValue]="lot.id">{{ lot.numeroLote }} · Stock {{ stockOfLot(lot.id) }}</option>
+                    }
+                  }
+                </select>
+              </label>
+              <label>Cantidad
+                <input type="number" min="0.01" step="0.01" formControlName="cantidad">
+                @if (fieldError(consultationForm.controls.cantidad)) { <small class="field-error">{{ fieldError(consultationForm.controls.cantidad) }}</small> }
+              </label>
+            </div>
+            <label>Indicaciones
+              <textarea formControlName="indicaciones" rows="2" maxlength="1000"></textarea>
+              @if (fieldError(consultationForm.controls.indicaciones)) { <small class="field-error">{{ fieldError(consultationForm.controls.indicaciones) }}</small> }
+            </label>
+            @if (consultationForm.controls.medicamentoId.touched && consultationForm.controls.medicamentoId.value === null && (consultationForm.controls.loteStockId.value !== null || consultationForm.controls.cantidad.value !== null)) {
+              <small class="field-error">Selecciona el medicamento para completar la receta.</small>
+            }
+            @if (consultationForm.controls.loteStockId.touched && consultationForm.controls.medicamentoId.value !== null && consultationForm.controls.loteStockId.value === null) {
+              <small class="field-error">Selecciona un lote para emitir la receta.</small>
+            }
+            @if (consultationForm.controls.cantidad.touched && consultationForm.controls.medicamentoId.value !== null && consultationForm.controls.cantidad.value === null) {
+              <small class="field-error">Indica la cantidad para emitir la receta.</small>
+            }
+          </fieldset>
+          <button class="primary" type="submit" [disabled]="savingConsultation()">
+            {{ savingConsultation() ? 'Guardando…' : 'Guardar consulta' }}
+          </button>
+          <button class="secondary" type="button" [disabled]="savingConsultation()" (click)="closeConsultationForm()">Cancelar</button>
+        </form>
+      </article>
+      }
+
+      @if (showNoticeForm()) {
+      <article class="panel">
+        <h2>Nuevo aviso</h2>
+        <form [formGroup]="noticeForm" (ngSubmit)="submitNotice()">
+          <label>Categoría
+            <select formControlName="categoria">
+              <option value="VACUNACION">Vacunación</option>
+              <option value="TRATAMIENTO">Tratamiento</option>
+              <option value="REVISION">Revisión</option>
+              <option value="ESTACIONAL">Estacional</option>
+            </select>
+          </label>
+          <label>Título
+            <input formControlName="titulo" maxlength="150">
+            @if (fieldError(noticeForm.controls.titulo)) { <small class="field-error">{{ fieldError(noticeForm.controls.titulo) }}</small> }
+          </label>
+          <label>Fecha objetivo
+            <input type="date" formControlName="fechaObjetivo">
+            @if (fieldError(noticeForm.controls.fechaObjetivo)) { <small class="field-error">{{ fieldError(noticeForm.controls.fechaObjetivo) }}</small> }
+          </label>
+          <label>Detalle
+            <textarea formControlName="detalleClinico" rows="4" maxlength="2000"></textarea>
+            @if (fieldError(noticeForm.controls.detalleClinico)) { <small class="field-error">{{ fieldError(noticeForm.controls.detalleClinico) }}</small> }
+          </label>
+          <button class="primary" type="submit" [disabled]="savingNotice()">
+            {{ savingNotice() ? 'Guardando…' : 'Crear aviso' }}
+          </button>
+          <button class="secondary" type="button" [disabled]="savingNotice()" (click)="closeNoticeForm()">Cancelar</button>
+        </form>
+      </article>
+      }
+    </section>
+
+    <section class="history-grid">
+      <article class="panel">
+        <h2>Consultas <span>{{ consultations().length }}</span></h2>
+        @for (consultation of consultations(); track consultation.id) {
+          <div class="history-item">
+            <strong>{{ consultation.fechaConsulta | date:'dd/MM/yyyy HH:mm' }}</strong>
+            <p>{{ consultation.motivo || 'Sin motivo' }}</p>
+            @if (consultation.notas) { <small>{{ consultation.notas }}</small> }
+          </div>
+        } @empty { <p class="empty">No hay consultas registradas.</p> }
+      </article>
+      <article class="panel">
+        <h2>Recetas <span>{{ prescriptions().length }}</span></h2>
+        @for (prescription of prescriptions(); track prescription.id) {
+          <div class="history-item">
+            <strong>{{ medicationName(prescription.medicamentoId) }} · {{ prescription.fechaEmision | date:'dd/MM/yyyy' }}</strong>
+            <p>{{ prescription.indicaciones || 'Sin indicaciones' }}</p>
+            <small>Consulta #{{ prescription.consultaId }} · {{ lotName(prescription.loteStockId) }}</small>
+          </div>
+        } @empty { <p class="empty">No hay recetas registradas.</p> }
+      </article>
+      <article class="panel">
+        <h2>Avisos <span>{{ notices().length }}</span></h2>
+        @for (notice of notices(); track notice.id) {
+          <div class="history-item">
+            <strong>{{ notice.titulo }}</strong>
+            <p>{{ notice.categoria }} · {{ notice.fechaObjetivo | date:'dd/MM/yyyy' }} · {{ notice.estado }}</p>
+            @if (notice.detalleClinico) { <small>{{ notice.detalleClinico }}</small> }
+          </div>
+        } @empty { <p class="empty">No hay avisos registrados.</p> }
+      </article>
+    </section>
+    }
+  }
+</main>

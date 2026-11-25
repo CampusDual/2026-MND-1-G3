@@ -1,0 +1,86 @@
+<main class="clinic-page">
+  <header class="clinic-header">
+    <div>
+      <span class="eyebrow">VETCONTROL · INVENTARIO CLÍNICO</span>
+      <h1>Inventario</h1>
+      <p>Existencias por lote y trazabilidad de movimientos.</p>
+    </div>
+  </header>
+
+  @if (error()) { <p class="error" role="alert">{{ error() }}</p> }
+  @if (loading()) { <p role="status">Cargando inventario…</p> }
+
+  <section class="inventory-grid">
+    <article class="panel">
+      <div class="panel-heading"><div><span class="eyebrow">COMPRA</span><h2>Entrada de lote</h2></div></div>
+      <form (ngSubmit)="registerPurchaseEntry()">
+        <label>Lote existente
+          <select [ngModel]="entryLotId()" (ngModelChange)="entryLotId.set($event)" name="entryLotId">
+            <option [ngValue]="null">Selecciona lote</option>
+            @for (lot of lotes(); track lot.id) {
+              <option [ngValue]="lot.id">{{ lot.numeroLote }} · {{ lot.proveedor }}</option>
+            }
+          </select>
+        </label>
+        <label>Cantidad recibida
+          <input type="number" min="0.01" step="0.01" [ngModel]="entryQuantity()"
+            (ngModelChange)="entryQuantity.set($event)" name="entryQuantity">
+        </label>
+        <button class="primary-button" type="submit">Registrar ENTRADA_COMPRA</button>
+      </form>
+    </article>
+
+    <article class="panel stock-panel">
+      <div class="panel-heading"><div><span class="eyebrow">STOCK ACTUAL</span><h2>Medicamentos y lotes</h2></div></div>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Medicamento</th><th>PRAN</th><th>Stock</th><th>Lotes</th></tr></thead>
+          <tbody>
+            @for (medication of medicamentos(); track medication.id) {
+              <tr>
+                <td><strong>{{ medication.nombreComercial }}</strong><small>{{ medication.principioActivo }}</small></td>
+                <td>{{ medication.categoriaPran }}</td>
+                <td [class.low-stock]="stockOfMedication(medication.id) < medication.stockMinimoAlerta">
+                  {{ stockOfMedication(medication.id) }}
+                </td>
+                <td>
+                  @for (lot of lotes(); track lot.id) {
+                    @if (lot.medicamentoId === medication.id) {
+                      <span class="lot">{{ lot.numeroLote }} ({{ stockOfLot(lot.id) }})</span>
+                    }
+                  }
+                </td>
+              </tr>
+            } @empty {
+              <tr><td colspan="4">No hay medicamentos disponibles.</td></tr>
+            }
+          </tbody>
+        </table>
+      </div>
+    </article>
+  </section>
+
+  <article class="panel ledger-panel">
+    <div class="panel-heading"><div><span class="eyebrow">LIBRO MAYOR</span><h2>Movimientos inmutables</h2></div></div>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>ID</th><th>Fecha</th><th>Tipo</th><th>Lote</th><th>Cantidad</th><th>Animal / explotación</th></tr></thead>
+        <tbody>
+          @for (movement of movimientos(); track movement.id) {
+            <tr>
+              <td>{{ movement.id }}</td>
+              <td>{{ movement.fechaHora | date:'dd/MM/yyyy HH:mm' }}</td>
+              <td><span class="status">{{ movement.tipoMovimiento }}</span></td>
+              <td>{{ loteNumber(movement.loteStockId) }}</td>
+              <td [class.out]="movement.cantidad < 0">{{ movement.cantidad }}</td>
+              <td>{{ movement.animalId ? 'Referencia clínica ' + movement.animalId : 'Sin paciente' }} ·
+                {{ movement.explotacionId ? 'Explotación ' + movement.explotacionId : 'Sin explotación' }}</td>
+            </tr>
+          } @empty {
+            <tr><td colspan="6">No hay movimientos registrados.</td></tr>
+          }
+        </tbody>
+      </table>
+    </div>
+  </article>
+</main>

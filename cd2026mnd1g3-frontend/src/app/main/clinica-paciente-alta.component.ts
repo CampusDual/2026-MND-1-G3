@@ -2,13 +2,15 @@ import { ChangeDetectionStrategy, Component, DestroyRef, computed, inject, signa
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { CommonModule } from '@angular/common';
 import {
+  AbstractControl,
   NonNullableFormBuilder,
   ReactiveFormsModule,
   Validators
 } from '@angular/forms';
-import { Router, RouterLink } from '@angular/router';
-import { debounceTime, distinctUntilChanged, of, switchMap } from 'rxjs';
+import { RouterLink } from '@angular/router';
+import { catchError, debounceTime, distinctUntilChanged, EMPTY, of, switchMap, tap } from 'rxjs';
 import { ClinicaPacienteService } from '../core/clinica-paciente.service';
+import { httpErrorMessage } from '../core/http-error-message';
 import {
   AltaPacienteRequest,
   EspecieMascota,
@@ -28,7 +30,6 @@ import {
 export class ClinicaPacienteAltaComponent {
   private readonly fb = inject(NonNullableFormBuilder);
   private readonly service = inject(ClinicaPacienteService);
-  private readonly router = inject(Router);
   private readonly destroyRef = inject(DestroyRef);
 
   readonly species: EspecieMascota[] = ['PERRO', 'GATO', 'PAJARO', 'OTRO'];
@@ -36,6 +37,8 @@ export class ClinicaPacienteAltaComponent {
   readonly loading = signal(false);
   readonly error = signal('');
   readonly success = signal('');
+  readonly newPatientId = signal<number | null>(null);
+  readonly attemptedSave = signal(false);
   readonly existingOwnerMode = signal(true);
   readonly duplicateOwner = signal<PropietarioClinica | null>(null);
   readonly ownerMatches = signal<PropietarioClinica[]>([]);
@@ -96,7 +99,13 @@ export class ClinicaPacienteAltaComponent {
         }
         this.ownerSearchLoading.set(true);
         this.ownerDropdownOpen.set(true);
-        return this.service.buscarPropietarios(term);
+        return this.service.buscarPropietarios(term).pipe(
+          catchError(error => {
+            this.ownerSearchLoading.set(false);
+            this.error.set(httpErrorMessage(error, 'No se pudo buscar el propietario.'));
+            return of([]);
+          })
+        );
       }),
       takeUntilDestroyed(this.destroyRef)
     ).subscribe({
@@ -105,19 +114,36 @@ export class ClinicaPacienteAltaComponent {
         this.ownerSearchLoading.set(false);
         this.ownerDropdownOpen.set(true);
       },
-      error: () => {
+      error: error => {
         this.ownerSearchLoading.set(false);
         this.ownerDropdownOpen.set(true);
-        this.error.set('No se pudo buscar el propietario.');
+        this.error.set(httpErrorMessage(error, 'No se pudo buscar el propietario.'));
       }
     });
 
-    this.ownerForm.valueChanges
-      .pipe(takeUntilDestroyed(this.destroyRef))
-      .subscribe(() => {
-        this.dirty.set(true);
-        this.checkOwnerDuplicate();
-      });
+    this.ownerForm.valueChanges.pipe(
+      tap(() => this.dirty.set(true)),
+      debounceTime(300),
+      distinctUntilChanged((previous, current) =>
+        previous.telefono === current.telefono && previous.dniNif === current.dniNif),
+      switchMap(() => {
+        this.duplicateOwner.set(null);
+        if (this.existingOwnerMode()) {
+          return of(null);
+        }
+        const owner = this.ownerForm.getRawValue();
+        if (!owner.telefono && !owner.dniNif) {
+          return of(null);
+        }
+        return this.service.buscarDuplicado(owner.telefono, owner.dniNif).pipe(
+          catchError(error => {
+            this.error.set(httpErrorMessage(error, 'No se pudo comprobar si ya existe el propietario.'));
+            return EMPTY;
+          })
+        );
+      }),
+      takeUntilDestroyed(this.destroyRef)
+    ).subscribe(match => this.duplicateOwner.set(match));
 
     this.patientForm.valueChanges
       .pipe(takeUntilDestroyed(this.destroyRef))
@@ -146,14 +172,14 @@ export class ClinicaPacienteAltaComponent {
       takeUntilDestroyed(this.destroyRef)
     ).subscribe({
       next: pets => this.ownerPets.set(pets),
-      error: () => this.error.set('No se pudieron cargar las mascotas del propietario.')
+      error: error => this.error.set(httpErrorMessage(error, 'No se pudieron cargar las mascotas del propietario.'))
     });
   }
 
   changeOwner(): void {
     this.selectedOwner.set(null);
     this.ownerPets.set([]);
-    this.searchForm.setValue('');
+    this.searchForm.setValue('', { emitEvent: false });
     this.ownerMatches.set([]);
     this.ownerDropdownOpen.set(true);
   }
@@ -175,7 +201,10 @@ export class ClinicaPacienteAltaComponent {
   }
 
   save(addAnother = false): void {
+    this.attemptedSave.set(true);
     if (!this.canSave()) {
+      this.ownerForm.markAllAsTouched();
+      this.patientForm.markAllAsTouched();
       this.error.set('Completa los bloques obligatorios antes de guardar.');
       return;
     }
@@ -216,34 +245,28 @@ export class ClinicaPacienteAltaComponent {
     this.service.alta(request).pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
       next: response => {
         this.loading.set(false);
+        this.newPatientId.set(response.paciente.id);
         this.success.set(`${response.paciente.nombre} se ha registrado correctamente.`);
-        if (addAnother) {
-          this.keepOwnerAfterSave(response.propietario);
-        } else {
-          this.dirty.set(false);
-        }
+        this.finishSave(addAnother ? response.propietario : undefined);
       },
-      error: () => {
+      error: error => {
         this.loading.set(false);
-        this.error.set('No se pudo guardar la mascota. Comprueba duplicados y datos obligatorios.');
+        this.error.set(httpErrorMessage(error, 'No se pudo guardar la mascota. Comprueba duplicados y datos obligatorios.'));
       }
     });
   }
 
-  retry(): void {
+  closeError(): void {
     this.error.set('');
   }
 
-  private checkOwnerDuplicate(): void {
-    if (this.existingOwnerMode()) return;
-    const owner = this.ownerForm.getRawValue();
-    if (!owner.telefono && !owner.dniNif) {
-      this.duplicateOwner.set(null);
-      return;
-    }
-    this.service.buscarDuplicado(owner.telefono, owner.dniNif).pipe(
-      takeUntilDestroyed(this.destroyRef)
-    ).subscribe(match => this.duplicateOwner.set(match));
+  fieldError(control: AbstractControl): string {
+    if (!control.touched || !control.errors) return '';
+    if (control.errors['required']) return 'Este campo es obligatorio.';
+    if (control.errors['pattern']) return 'Usa el formato internacional, por ejemplo +34600123456.';
+    if (control.errors['email']) return 'Introduce un email válido.';
+    if (control.errors['maxlength']) return 'Se ha superado la longitud máxima.';
+    return 'Revisa el valor introducido.';
   }
 
   private checkDuplicatePet(): void {
@@ -267,15 +290,28 @@ export class ClinicaPacienteAltaComponent {
     ).subscribe({
       next: breeds => {
         this.breeds.set(breeds);
-        this.patientForm.controls.raza.setValue(breeds[0] ?? 'Sin especificar');
+        this.patientForm.controls.raza.setValue(breeds[0] ?? 'Sin especificar', { emitEvent: false });
       },
-      error: () => this.error.set('No se pudieron cargar las razas.')
+      error: error => this.error.set(httpErrorMessage(error, 'No se pudieron cargar las razas.'))
     });
   }
 
-  private keepOwnerAfterSave(owner: PropietarioClinica): void {
-    this.selectedOwner.set(owner);
+  private finishSave(owner?: PropietarioClinica): void {
+    this.resetPatientForm();
+    this.ownerForm.reset(undefined, { emitEvent: false });
+    this.searchForm.reset('', { emitEvent: false });
+    this.selectedOwner.set(owner ?? null);
+    if (!owner) this.ownerPets.set([]);
+    this.ownerMatches.set([]);
+    this.duplicateOwner.set(null);
+    this.duplicatePetWarning.set('');
+    this.ownerDropdownOpen.set(false);
     this.existingOwnerMode.set(true);
+    if (owner) this.success.set('Mascota guardada. El propietario permanece seleccionado.');
+    this.dirty.set(false);
+  }
+
+  private resetPatientForm(): void {
     this.patientForm.reset({
       nombre: '',
       especie: 'PERRO',
@@ -293,12 +329,7 @@ export class ClinicaPacienteAltaComponent {
       manejoNervioso: false,
       patologiaCronica: false,
       notaBanderas: ''
-    });
-    this.ownerForm.reset();
-    this.ownerMatches.set([]);
-    this.duplicateOwner.set(null);
-    this.duplicatePetWarning.set('');
-    this.success.set('Mascota guardada. El propietario permanece seleccionado.');
-    this.dirty.set(false);
+    }, { emitEvent: false });
+    this.loadBreeds('PERRO');
   }
 }

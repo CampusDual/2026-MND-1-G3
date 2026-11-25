@@ -8,11 +8,16 @@ import { Observable, catchError, map, of } from 'rxjs';
 @Injectable({ providedIn: 'root' })
 export class AuthService {
   private readonly usersPath: string = '/api/users';
+  private readonly sessionStorageKey: string = 'vetcontrol.authHeader';
   private readonly authenticatedSignal = signal<boolean>(false);
   private readonly authHeaderSignal = signal<string>('');
   private readonly errorMessageSignal = signal<string>('');
 
-  constructor(private readonly http: HttpClient) {}
+  constructor(private readonly http: HttpClient) {
+    const storedAuthHeader = sessionStorage.getItem(this.sessionStorageKey);
+    this.authHeaderSignal.set(storedAuthHeader ?? '');
+    this.authenticatedSignal.set(Boolean(storedAuthHeader));
+  }
 
   isAuthenticated(): boolean {
     return this.authenticatedSignal();
@@ -41,6 +46,7 @@ export class AuthService {
       map(() => {
         this.authHeaderSignal.set(authHeader);
         this.authenticatedSignal.set(true);
+        sessionStorage.setItem(this.sessionStorageKey, authHeader);
         return true;
       }),
       catchError((error: HttpErrorResponse) => {
@@ -61,6 +67,7 @@ export class AuthService {
     this.authHeaderSignal.set('');
     this.authenticatedSignal.set(false);
     this.errorMessageSignal.set('');
+    sessionStorage.removeItem(this.sessionStorageKey);
   }
 
   getAuthHeader(): string {

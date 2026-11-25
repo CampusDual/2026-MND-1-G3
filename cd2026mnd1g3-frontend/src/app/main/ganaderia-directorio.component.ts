@@ -3,7 +3,7 @@ import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { CommonModule } from '@angular/common';
 import { NonNullableFormBuilder, ReactiveFormsModule } from '@angular/forms';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
-import { debounceTime, distinctUntilChanged, switchMap } from 'rxjs';
+import { EMPTY, catchError, debounceTime, distinctUntilChanged, switchMap } from 'rxjs';
 import { GanaderiaHierarchyService } from '../core/ganaderia-hierarchy.service';
 import { GanaderiaFarmSummary } from '../core/ganaderia-hierarchy.models';
 import { GanaderiaHudStateService } from '../core/ganaderia-hud-state.service';
@@ -48,25 +48,28 @@ export class GanaderiaDirectorioComponent {
       debounceTime(300),
       distinctUntilChanged(),
       switchMap(search => {
+        this.page.set(0);
+        void this.router.navigate([], {
+          relativeTo: this.route,
+          queryParams: { search: search || null, page: 0 },
+          queryParamsHandling: 'merge'
+        });
         this.loading.set(true);
-        return this.service.findFarms(search, this.page(), this.size());
+        return this.service.findFarms(search, 0, this.size()).pipe(
+          catchError(() => {
+            this.loading.set(false);
+            this.error.set('No se pudo cargar el directorio de explotaciones.');
+            return EMPTY;
+          })
+        );
       }),
       takeUntilDestroyed(this.destroyRef)
     ).subscribe({
       next: farms => {
-        this.farms.set(farms.content);
-        this.totalElements.set(farms.totalElements);
-        this.totalPages.set(farms.totalPages);
+        this.updateFarmPage(farms.content, farms.totalElements, farms.totalPages);
         this.loading.set(false);
-        this.hud.visibleFarms.set(farms.totalElements);
-        this.hud.totalHeads.set(farms.content.reduce((sum, farm) => sum + farm.totalHeads, 0));
-        this.hud.activeAlerts.set(farms.content.reduce((sum, farm) => sum + farm.activeAlerts, 0));
-        this.hud.pendingActions.set(farms.content.reduce((sum, farm) => sum + farm.pendingActions, 0));
       },
-      error: () => {
-        this.loading.set(false);
-        this.error.set('No se pudo cargar el directorio de explotaciones.');
-      }
+      error: () => this.loading.set(false)
     });
   }
 
@@ -92,9 +95,7 @@ export class GanaderiaDirectorioComponent {
       takeUntilDestroyed(this.destroyRef)
     ).subscribe({
       next: farms => {
-        this.farms.set(farms.content);
-        this.totalElements.set(farms.totalElements);
-        this.totalPages.set(farms.totalPages);
+        this.updateFarmPage(farms.content, farms.totalElements, farms.totalPages);
         this.loading.set(false);
       },
       error: () => {
@@ -102,5 +103,19 @@ export class GanaderiaDirectorioComponent {
         this.error.set('No se pudo cargar el directorio de explotaciones.');
       }
     });
+  }
+
+  private updateFarmPage(
+    farms: GanaderiaFarmSummary[],
+    totalElements: number,
+    totalPages: number
+  ): void {
+    this.farms.set(farms);
+    this.totalElements.set(totalElements);
+    this.totalPages.set(totalPages);
+    this.hud.visibleFarms.set(totalElements);
+    this.hud.totalHeads.set(farms.reduce((sum, farm) => sum + farm.totalHeads, 0));
+    this.hud.activeAlerts.set(farms.reduce((sum, farm) => sum + farm.activeAlerts, 0));
+    this.hud.pendingActions.set(farms.reduce((sum, farm) => sum + farm.pendingActions, 0));
   }
 }

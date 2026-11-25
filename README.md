@@ -49,7 +49,7 @@ mvn -pl cd2026mnd1g3-boot spring-boot:run -Dspring-boot.run.profiles=v
 
 ---
 
-- Usa HSQLDB en archivo local (`.local/hsqldb/appdb`), así los datos **se conservan**.
+- Usa HSQLDB en archivo local (`.local/hsqldb_old`), así los datos **se conservan**.
 - Necesita **arrancar la base de datos antes** que el backend.
 - Puedes consultar la BD desde la consola H2 del navegador, pero para trabajo más cómodo normalmente también se usan clientes externos como **DBeaver**.
 
